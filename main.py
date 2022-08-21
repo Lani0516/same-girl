@@ -325,9 +325,10 @@ class TestBot(discord.Client):
         response = None
 
         try:
-            response = await target(**target_kwargs)
             if '--error' in [i.strip() for i in args]:
-                raise JustWrong("testing error")
+                raise JustWrong("--testing error")
+
+            response = await target(**target_kwargs)
 
         except JustWrong as error:
             docs = getattr(target, '__doc__', None)

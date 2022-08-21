@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-import traceback
+import taceback
 
 def main():
     
@@ -10,16 +10,18 @@ def main():
         client = TestBot()
         client.run()
     
-    # TODO: add all error exceptions
     except SyntaxError:
-        print("\nSyntax Raised Error !\n")
-        return
-
-    except:
-        print()
         traceback.print_exc()
-        print("\nError Raised !\n")
-        return
+        print("\n>>> Syntax Raised Error ! <<<\n")
+
+    except KeyboardInterrupt:
+        # already had print KeyboardInterrupt
+        pass
+
+    # TODO: fix the func of closing loop and client session
+    except:
+        traceback.print_exc()
+        print("\n>>> Unexpected Error <<<\n") 
 
 if __name__ == '__main__':
     main()
