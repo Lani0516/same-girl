@@ -176,11 +176,12 @@ class TestBot(discord.Client):
 
         return embed
 
-    async def cmd_send(self, other):
+    async def cmd_send(self, channel, other):
         """
         Usage:
-            {command_prefix}send <message_content> <channel_id>
+            {command_prefix}send <message_content> [channel_id]
         Example:
+            Send Hello in current channel | send Hello
             Send Hello World in Lobby with channel id | send Hello World 1003922992805449780 
         Change:
             None
@@ -189,23 +190,25 @@ class TestBot(discord.Client):
         Return:
             Message Content
         """
-        content = channel = None
+        content = None
         
-        if len(other) <= 2:
-            raise JustWrong("invalid input")
-
         # other = [message, channel_id[-1]]
-        try: channel = self.get_channel(int(other.pop(-1)))  
-        except: raise JustWrong("invalid channel id")
-        
-        if not channel: raise JustWrong("invalid channel id")
+        try:
+            exp_channel = self.get_channel(int(other[-1]))
+        except:
+            exp_channel = None
 
+        if not exp_channel:
+            exp_channel = channel
+        else:
+            other.pop(-1)
+        
         content = ' '.join(other)
 
         await self.channel_send(
             response=content,
             type='text',
-            channel=channel
+            channel=exp_channel
         )
 
     # first step for making {command_prefix}help
