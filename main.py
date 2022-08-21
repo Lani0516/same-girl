@@ -176,21 +176,37 @@ class TestBot(discord.Client):
 
         return embed
 
-    async def cmd_send(self):
+    async def cmd_send(self, other):
         """
         Usage:
-            {command_prefix}send
+            {command_prefix}send <message_content> <channel_id>
         Example:
-            Getting the sum of 2 nums | sum 1 2
-            Getting the sum of multiple nums | sum 1 5 10 15 20
+            Send Hello World in Lobby with channel id | send Hello World 1003922992805449780 
         Change:
             None
         Name:
             send
         Return:
-            Sum of Input Nums
+            Message Content
         """
+        content = channel = None
+        
+        if len(other) <= 2:
+            raise JustWrong("invalid input")
 
+        # other = [message, channel_id[-1]]
+        try: channel = self.get_channel(int(other.pop(-1)))  
+        except: raise JustWrong("invalid channel id")
+        
+        if not channel: raise JustWrong("invalid channel id")
+
+        content = ' '.join(other)
+
+        await self.channel_send(
+            response=content,
+            type='text',
+            channel=channel
+        )
 
     # first step for making {command_prefix}help
     async def cmd_docs(self):
@@ -359,7 +375,7 @@ class TestBot(discord.Client):
         response_type = 'embed'
 
         if not response:
-            print("Command hasn\'t finished yet.\n")
+            print("| Command has no return")
             return
 
         try:
