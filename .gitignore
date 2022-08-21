@@ -1,0 +1,5 @@
+# ignoring secret env.
+.env
+
+# some screenshot for testing
+screenshot/
