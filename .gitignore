@@ -3,3 +3,6 @@
 
 # some screenshot for testing
 screenshot/
+
+# stop uploading .pyc
+__pycache__/
