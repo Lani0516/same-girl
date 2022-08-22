@@ -70,19 +70,24 @@ class TestBot(discord.Client):
 
         await self.wait_until_ready()
 
-        print("      ___           ___           ___           ___           ___     ",
-              "     /\  \         /\__\         /\  \         /\  \         /\__\    ",
-              "    /::\  \       /:/  /        /::\  \       /::\  \       /:/  /    ",
-              "   /:/\ \  \     /:/__/        /:/\:\  \     /:/\:\  \     /:/__/     ",
-              "  _\:\~\ \  \   /::\  \ ___   /::\~\:\  \   /::\~\:\  \   /::\__\____ ",
-              " /\ \:\ \ \__\ /:/\:\  /\__\ /:/\:\ \:\__\ /:/\:\ \:\__\ /:/\:::::\__\\",
-              " \:\ \:\ \/__/ \/__\:\/:/  / \/__\:\/:/  / \/_|::\/:/  / \/_|:|~~|~   ",
-              "  \:\ \:\__\        \::/  /       \::/  /     |:|::/  /     |:|  |    ",
-              "   \:\/:/  /        /:/  /        /:/  /      |:|\/__/      |:|  |    ",
-              "    \::/  /        /:/  /        /:/  /       |:|  |        |:|  |    ",
-              "     \/__/         \/__/         \/__/         \|__|         \|__|    ", sep='\n', end='\n\n')
+        print("===========================================================",
+              "|      ___           ___           ___           ___      |",
+              "|     /\  \         /\  \         /\__\         /\  \     |",
+              "|    /::\  \       /::\  \       /::|  |       /::\  \    |",
+              "|   /:/\ \  \     /:/\:\  \     /:|:|  |      /:/\:\  \   |",
+              "|  _\:\~\ \  \   /::\~\:\  \   /:/|:|__|__   /::\~\:\  \  |",
+              "| /\ \:\ \ \__\ /:/\:\ \:\__\ /:/ |::::\__\ /:/\:\ \:\__\\ |",
+              "| \:\ \:\ \/__/ \/__\:\/:/  / \/__/~~/:/  / \:\~\:\ \/__/ |",
+              "|  \:\ \:\__\        \::/  /        /:/  /   \:\ \:\__\   |",
+              "|   \:\/:/  /        /:/  /        /:/  /     \:\ \/__/   |",
+              "|    \::/  /        /:/  /        /:/  /       \:\__\     |",
+              "|     \/__/         \/__/         \/__/         \/__/     |",
+              "|                                                         |",
+              "===========================================================", sep='\n', end='\n')
 
-        print(f'\n{str(self.user)[:-5]} Status | Online\n')
+        start_up = f'>>> Your Bot {str(self.user)[:-5]} is now Online' 
+        print(start_up)
+        print('-' * (len(start_up)+1)) 
 
 ##############################################################
 
@@ -267,31 +272,40 @@ class TestBot(discord.Client):
         if message.author.bot:
             return
 
-        """Nhentai translator"""
-        if message.channel.id == self.nchannel:
-            kami_no_kotoba = message.content.strip()
-            if len(kami_no_kotoba) == 6:
-                try:
-                    kami_no_kotoba = int(kami_no_kotoba)
-                    await self.channel_send(
-                        response=f'https://nhentai.net/g/{kami_no_kotoba}',
-                        type='text',
-                        channel=message.channel
-                    )
-                    print(f'{message.guild} | {message.author} | generating kami_no_kotoba >> {kami_no_kotoba}')
+        message_content = message.content.strip()
 
-                    await message.delete()
-                    
-                    return
-                except ValueError:
-                    pass
+        """Nhentai Translator"""
+        n_signal = False
+        if message.channel.id == self.nchannel:
+            n_signal = True
+
+        # 1. if Can -> int
+        try:
+            int(message_content)
+        except: 
+            n_signal = False
+
+        # 2. if len -> 6
+        if not len(message_content) == 6:
+            n_signal = False
+
+        # 3. send
+        if n_signal:
+            await self.channel_send(
+                response=f'https://nhentai.net/g/{int(message_content)}',
+                type='text',
+                channel=self.get_channel(self.nchannel)
+            )
+
+            print(f'{message.guild} | {message.author} | generating n_number >> {int(message_content)}')
+
+            await message.delete()
+            return
 
         """Command Reader"""
         # Change the prefix to config someday
         if not message.content.startswith(self.prefix):
             return
-
-        message_content = message.content.strip()
 
         command, *args = message_content.split(' ')
         command = command[len(self.prefix):].lower().strip()
