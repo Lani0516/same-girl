@@ -4,6 +4,7 @@ import time
 import asyncio
 import inspect
 import traceback
+from xmlrpc.client import Boolean
 
 import aiohttp
 import discord
@@ -21,15 +22,17 @@ class TestBot(discord.Client):
         self.BOTVERSION = 'v0.1.0'
         self.embed_color = (191, 120, 120)
         self.prefix = '>>'
+        self.vprefix = '☕️｜'
         self.game = discord.Game("/help || 加入SharkParty")
         self.token = 'MTAwMzkyNzYwMTY3NDQ2MTMwNA.GNkOdj.xQ-b4SwaXRPLYTglCOjZM94OTNgAUyW86h59IM'
 
+        self.vchannel_status = 1008425742092214352
         self.vchannel_blacklist = [
             1008422710692565082, # decorator
             1008422750781722716, # decorator
-            1008439019731947550
         ]
         self.nchannel = 1010557329579724864
+        self.vcategory = 1003922992805449779
 
         super().__init__(intents=intents)
 
@@ -111,7 +114,6 @@ class TestBot(discord.Client):
 
         embed = self.gen_embed(style='empty')
         embed.title = f'{emoji_prefix} {int(round(self.latency, 3)*1000)}ms'
-        
         return embed
 
     async def cmd_avatar(self, author, other):
@@ -142,7 +144,6 @@ class TestBot(discord.Client):
         embed = self.gen_embed(style='empty', imp=True)
         embed.title = f'{emoji_prefix} {author}'
         embed.set_image(url=author.avatar.url)
-
         return embed
 
     async def cmd_sum(self, other):
@@ -162,23 +163,19 @@ class TestBot(discord.Client):
         emoji_prefix = '<:announcement:1005815395967565834>'
 
         embed = self.gen_embed(style='empty')
-        signal = False
 
         if len(other) <= 1:
             raise JustWrong("please input more than one number")
 
-        try:
-            num = 0
-            for i in other:
-                num+=int(i)
-        except:
-            signal = True
-
-        if signal:
-            raise JustWrong("wrong input")
+        check = [self.is_int(i) for i in other]
+        if False in check:
+            raise JustWrong("invalid input")
+        
+        num = 0
+        for i in other:
+            num+=int(i)
 
         embed.title = f'{emoji_prefix} {num}'
-
         return embed
 
     async def cmd_send(self, channel, other):
@@ -216,9 +213,33 @@ class TestBot(discord.Client):
             channel=exp_channel
         )
 
-    # first step for making {command_prefix}help
-    async def cmd_docs(self):
-        print([i.strip() for i in self.cmd_ping.__doc__.strip().split('\n')])
+    async def cmd_clear(self, guild, other):
+        """
+        Usage:
+            {command_prefix}clear <object type>
+        Example:
+            Clear all vchannel which are not in blacklist | clear vchannel
+        Change:
+            None
+        Name:
+            clear
+        Return:
+            None
+        """
+        if not other:
+            raise JustWrong("missing arguments")
+        
+        type = other[0]
+
+        if type == 'vchannel':
+            for channel in guild.voice_channels:
+                await self.del_vchannel(channel)
+            return
+        
+        if type == 'message':
+            return
+
+        print("Unknown Type\n")
 
 ##############################################################
 
@@ -232,39 +253,28 @@ class TestBot(discord.Client):
             join = True
 
         content = str()
-
-        del_signal = False
         
         if join and not leave: # join only
-            content, color = f'{member.display_name} 進入了 {str(after.channel)[3:]}', (150, 194, 208)
+            content, color = f'{member.display_name} | 進入了 | {str(after.channel)[len(self.vprefix)-1:]}', (150, 194, 208)
             
         elif not join and leave: # change
-            content, color = f'{member.display_name} 離開了 {str(before.channel)[3:]}', None
-            if not before.channel.members:
-                del_signal = True
+            content, color = f'{member.display_name} | 離開了 | {str(before.channel)[len(self.vprefix)-1:]}', None
 
         else: # leave only
-            content, color = f'{member.display_name} 由 {str(before.channel)[3:]} 進入了 {str(after.channel)[3:]}', (216, 176, 107)
-            if not before.channel.members:
-                del_signal = True
-
-        if before.channel.id in self.vchannel_blacklist:
-            del_signal = False
+            content, color = f'{member.display_name} | 由 | {str(before.channel)[len(self.vprefix)-1:]} | 進入了 | {str(after.channel)[len(self.vprefix)-1:]}', (216, 176, 107)
 
         print(f'{member.guild} | {content}')
 
-        embed = self.gen_embed(style='empty', color=color)
-        try:
-            embed.set_author(name=content, icon_url=member.display_avatar)
-        except:
-            embed.set_author(name=content, icon_url=member.display_avatar_url)
-            print("Try to upgrade your Pycord or Discord.py version.\n")
+        args = content, member.display_avatar
 
-        if del_signal:
-            print(f'{member.guild} | Delete Vchannel | {before.channel}')
-            await before.channel.delete()
+        embed = self.gen_embed(
+            args,
+            style='line',
+            color=color
+        )
 
-        await self.channel_send(response=embed, type='embed', channel=self.get_channel(1008425742092214352))
+        await self.del_vchannel(before.channel)
+        await self.channel_send(response=embed, type='embed', channel=self.get_channel(self.vchannel_status))
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -275,31 +285,36 @@ class TestBot(discord.Client):
         message_content = message.content.strip()
 
         """Nhentai Translator"""
-        n_signal = False
-        if message.channel.id == self.nchannel:
-            n_signal = True
+        # build it into a function for better returning
+        stop = None
 
-        # 1. if Can -> int
-        try:
-            int(message_content)
-        except: 
-            n_signal = False
+        stop = await self.n_translator(
+            number=message_content,
+            channel=message.channel,
+        )
 
-        # 2. if len -> 6
-        if not len(message_content) == 6:
-            n_signal = False
-
-        # 3. send
-        if n_signal:
-            await self.channel_send(
-                response=f'https://nhentai.net/g/{int(message_content)}',
-                type='text',
-                channel=self.get_channel(self.nchannel)
-            )
-
+        if stop:
             print(f'{message.guild} | {message.author} | generating n_number >> {int(message_content)}')
-
             await message.delete()
+            return
+
+        """Vchannel Creator"""
+        # create | [name] < | [limit] >
+        # 1. message.author -> highest perm. of this vchannel
+        # make this into a function
+        # 2. use vchannel private channel to set perm.
+        # | log vchannel into a file
+        # | send usage when created
+        # | json ? 
+        stop = await self.gen_vchannel(
+            vchannel=message_content,
+            guild=message.guild,
+            channel=message.channel,
+            author=message.author
+        )
+        
+        if stop:
+            print(f'{message.guild} | {message.author} | generating v_channel >> {stop[len(self.vprefix):]}')
             return
 
         """Command Reader"""
@@ -418,16 +433,83 @@ class TestBot(discord.Client):
         else:
             print("Send unknown type.")
 
-    def gen_embed(self, *args, style=None, color=None, imp=False):
+    async def gen_vchannel(self, vchannel, guild, channel, author):
+        # use catergory.create_voice_channel
+        # category -> self.vcategory
+        category = discord.utils.get(guild.categories, id=self.vcategory)
+        vchannel = [i.strip() for i in vchannel.split('|')]
+
+        if not category:
+            print("invalid vcategory\n")
+            return
+            
+        if not vchannel[0] == "create":
+            return
+
+        name = f'{self.vprefix}{vchannel[1]}'
+        
+        try:
+            limit = vchannel.pop(2)
+        except IndexError:
+            limit = 0
+
+        # cannot use if limit: because 0 also equals to false
+        if limit == '':
+            await self.channel_send(
+                response='再多一個 | 我就幫你折蓮花',
+                type='text',
+                channel=channel
+            )
+            return
+
+        await category.create_voice_channel(name, user_limit=limit, bitrate=self.get_bitrate(guild), position=1)
+
+        args = f'{author.display_name} | 創建了 | {name[len(self.vprefix):]}', author.display_avatar
+
+        embed = self.gen_embed(
+            args,
+            style='line',
+            color=(144, 202, 144),
+        )
+        await self.channel_send(
+            response=embed,
+            type='embed',
+            channel=self.get_channel(self.vchannel_status)
+        )
+        return name
+
+    async def del_vchannel(self, vchannel):
+        if not vchannel:
+            return
+
+        if vchannel.id in self.vchannel_blacklist:
+            return
+
+        if vchannel.members:
+            return
+
+        print(f'{vchannel.guild} | Delete Vchannel | {str(vchannel)[len(self.vprefix)-1:]}') 
+
+        args = f'{str(vchannel)[len(self.vprefix)-1:]} | 成為了回憶', 'https://cdn-icons-png.flaticon.com/512/1978/1978026.png'
+
+        embed = self.gen_embed(
+            args,
+            style='line',
+            color=(124, 124, 124),
+        )
+        await self.channel_send(
+            response=embed,
+            type='embed',
+            channel=self.get_channel(self.vchannel_status)
+        )
+        await vchannel.delete()
+
+    def gen_embed(self, *args, style='empty', color=None, imp=False):
         """Provides a basic template for embeds."""
         embed = discord.Embed()
 
         if args:
             args = args[0]
-
-        if not style:
-            print("Embed got no style.\n")
-            return
 
         if color:
             try:
@@ -444,9 +526,13 @@ class TestBot(discord.Client):
 
         # add some style
         if style == 'empty':
-            pass
+            return embed
+
+        if style == 'line':
+            embed.set_author(name=args[0], icon_url=args[1])
+            return embed
         
-        elif style == 'error':
+        if style == 'error':
             embed.set_author(name=' | Error Raised', icon_url='https://cdn-icons-png.flaticon.com/512/5219/5219070.png')
             try:
                 embed.title = f'Error of using {args[0].capitalize()}'
@@ -463,28 +549,67 @@ class TestBot(discord.Client):
                     value=f'- <imp> - [n-imp] -\n```{args[2]}```',
                     inline=False
                 )
-
                 embed.add_field(
                     name='Example',
                     value=value,
                     inline=False
                 )
-
                 embed.add_field(
                     name='Return',
                     value=f'```{args[1]}```',
                     inline=False
                 )
+                return embed
             except:
                 print("Creating author only error embed\n")
+                return embed
 
-        else:
-            print("Unknown embed style. Returning back empty one.\n")
+        print("Unknown embed style. Returning back empty one.\n")
 
         return embed
 
+    async def n_translator(self, number, channel):
+        if not channel.id == self.nchannel:
+            return
+
+        if not self.is_int(number):
+            return
+
+        if not len(number) == 6:
+            return
+
+        await self.channel_send(
+            response=f'https://nhentai.net/g/{int(number)}',
+            type='text',
+            channel=channel
+            )
+        return "Done!"
+
 ##############################################################
 
-    def get_vchannel_blacklist(self):
-        """Return all dec. or blacklisted vchannel."""
-        return self.vchannel_blacklist
+    def is_int(self, object) -> Boolean:
+        try:
+            int(object)
+        except:
+            return False
+        return True
+
+    def is_exist(self, list: list, index: int) -> Boolean:
+        try:
+            list[index]
+        except:
+            return False
+        return True
+
+    def get_bitrate(self, guild) -> int:
+        tier = guild.premium_tier
+
+        if tier == 0:
+            return 96000
+        if tier == 1:
+            return 128000
+        if tier == 2:
+            return 256000
+        if tier == 3:
+            return 384000
+             
