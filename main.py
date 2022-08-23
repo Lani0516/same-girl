@@ -4,7 +4,6 @@ import time
 import asyncio
 import inspect
 import traceback
-from xmlrpc.client import Boolean
 
 import aiohttp
 import discord
@@ -587,14 +586,14 @@ class TestBot(discord.Client):
 
 ##############################################################
 
-    def is_int(self, object) -> Boolean:
+    def is_int(self, object) -> bool:
         try:
             int(object)
         except:
             return False
         return True
 
-    def is_exist(self, list: list, index: int) -> Boolean:
+    def is_exist(self, list: list, index: int) -> bool:
         try:
             list[index]
         except:
