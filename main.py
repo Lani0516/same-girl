@@ -254,13 +254,13 @@ class TestBot(discord.Client):
         content = str()
         
         if join and not leave: # join only
-            content, color = f'{member.display_name} | 進入了 | {str(after.channel)[len(self.vprefix)-1:]}', (150, 194, 208)
+            content, color = f'{member.display_name} | 加入 {str(after.channel)[len(self.vprefix)-1:]}', (150, 194, 208)
             
         elif not join and leave: # change
-            content, color = f'{member.display_name} | 離開了 | {str(before.channel)[len(self.vprefix)-1:]}', None
+            content, color = f'{member.display_name} | 離開 | {str(before.channel)[len(self.vprefix)-1:]}', None
 
         else: # leave only
-            content, color = f'{member.display_name} | 由 | {str(before.channel)[len(self.vprefix)-1:]} | 進入了 | {str(after.channel)[len(self.vprefix)-1:]}', (216, 176, 107)
+            content, color = f'{member.display_name} | {str(before.channel)[len(self.vprefix)-1:]} 移到 {str(after.channel)[len(self.vprefix)-1:]}', (216, 176, 107)
 
         print(f'{member.guild} | {content}')
 
@@ -272,8 +272,8 @@ class TestBot(discord.Client):
             color=color
         )
 
-        await self.del_vchannel(before.channel)
         await self.channel_send(response=embed, type='embed', channel=self.get_channel(self.vchannel_status))
+        await self.del_vchannel(before.channel)
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -463,7 +463,7 @@ class TestBot(discord.Client):
 
         await category.create_voice_channel(name, user_limit=limit, bitrate=self.get_bitrate(guild), position=1)
 
-        args = f'{author.display_name} | 創建了 | {name[len(self.vprefix):]}', author.display_avatar
+        args = f'{author.display_name} | 創建了 {name[len(self.vprefix):]}', author.display_avatar
 
         embed = self.gen_embed(
             args,
