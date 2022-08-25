@@ -6,3 +6,5 @@ screenshot/
 
 # stop uploading .pyc
 __pycache__/
+
+# config/vchannel.json
