@@ -9,6 +9,7 @@ import traceback
 import aiohttp
 import discord
 
+from modules.json import Json
 from modules.exception import JustWrong
 
 intents = discord.Intents.all()
@@ -26,6 +27,7 @@ class TestBot(discord.Client):
         self.game = discord.Game("/help || 加入SharkParty")
         self.token = 'MTAwMzkyNzYwMTY3NDQ2MTMwNA.GNkOdj.xQ-b4SwaXRPLYTglCOjZM94OTNgAUyW86h59IM'
 
+        self.vchannel_create = 1011546109568634902
         self.vchannel_status = 1008425742092214352
         self.vchannel_blacklist = [
             1008422710692565082, # decorator
@@ -40,8 +42,10 @@ class TestBot(discord.Client):
         self.vchannel_commands = [
             'name', 'whitelist', 'blacklist', 'mute', 'unmute', 'deaf', 'undeaf', 'kick', 'coop'
         ]
-        self.vchannel_detail = 
-
+        self.vchannel_details = Json('config/vchannel.json')
+        
+        self.vchannel_details.dump({})
+        
         super().__init__(intents=intents)
 
         self.colour = discord.Colour(value=000000)
@@ -134,8 +138,7 @@ class TestBot(discord.Client):
 
         await self.channel_send(
             response=content,
-            type='text',
-            channel=exp_channel
+            type='text', channel=exp_channel
         )
 
     async def cmd_clear(self, guild, other):
@@ -251,8 +254,6 @@ class TestBot(discord.Client):
         embed.title = f'{emoji_prefix} {num}'
         return embed
 
-
-
 ##############################################################
 
     async def on_voice_state_update(self, member, before, after):
@@ -281,12 +282,44 @@ class TestBot(discord.Client):
 
         embed = self.gen_embed(
             args,
-            style='line',
-            color=color
+            style='line', color=color
         )
 
         await self.channel_send(response=embed, type='embed', channel=self.get_channel(self.vchannel_status))
         await self.del_vchannel(before.channel)
+
+    async def on_guild_channel_create(self, channel):
+        if str(channel.type) != 'voice':
+            return
+
+        guild_id = channel.guild.id
+        channel_id = channel.id
+        author = self.get_channel(self.vchannel_create).last_message.author
+        
+        details = self.vchannel_details.data
+        details[str(channel_id)] = {'author': str(author), 'guild_id': guild_id}
+
+        # channel id: str, author: str, guild_id: int
+        self.vchannel_details.dump(details)
+    
+    async def on_guild_channel_delete(self, channel):
+        if str(channel.type) != 'voice':
+            return
+
+        guild = channel.guild
+        
+        details = self.vchannel_details.data
+        try:
+            details.pop(str(channel.id))
+        except KeyError:
+            print("| Could not find channel, clearing all channel in current guild.")  
+
+            for key in list(details):
+                if details[key]['guild_id'] == guild.id:
+                    del details[key]
+            await self.cmd_clear(guild, ['vchannel'])
+
+        self.vchannel_details.dump(details)
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -301,7 +334,7 @@ class TestBot(discord.Client):
         stop = None
 
         stop = await self.n_translator(
-            number=message_content,
+            message_content,
             channel=message.channel,
         )
 
@@ -318,15 +351,14 @@ class TestBot(discord.Client):
         # | log vchannel into a file
         # | send usage when created
         # | json ? 
-        stop = await self.gen_vchannel(
-            vchannel=message_content,
-            guild=message.guild,
-            channel=message.channel,
-            author=message.author
-        )
+        if message.channel == self.get_channel(self.vchannel_create):
+            stop = await self.gen_vchannel(
+                message_content, 
+                guild=message.guild, channel=message.channel, author=message.author
+            )
         
         if stop:
-            print(f'{message.guild} | {message.author} | generating v_channel >> {stop[len(self.vprefix):]}')
+            print(f'{message.guild} | {message.author} | generating vchannel >> {stop[len(self.vprefix):]}')
             return
 
         """Command Reader"""
@@ -377,7 +409,7 @@ class TestBot(discord.Client):
 
         if (
             command in self.vchannel_commands
-            and message.channel.type != 'voice'
+            and str(message.channel.type) != 'voice'
         ):
             await self.channel_send(
                 "This is a vchannel command.",
@@ -422,8 +454,7 @@ class TestBot(discord.Client):
 
             response = self.gen_embed(
                 args,
-                style='error',
-                imp=True
+                style='error', imp=True
             )
 
             response.description = f'> {error.message}'
@@ -446,9 +477,8 @@ class TestBot(discord.Client):
 
         try:
             await self.channel_send(
-                response=response,
-                type=response_type,
-                channel=message.channel
+                response,
+                type=response_type, channel=message.channel
             )
         except TypeError:
             print("You make set somewhere.\n")
@@ -501,13 +531,11 @@ class TestBot(discord.Client):
 
         embed = self.gen_embed(
             args,
-            style='line',
-            color=(144, 202, 144),
+            style='line', color=(144, 202, 144),
         )
         await self.channel_send(
             response=embed,
-            type='embed',
-            channel=self.get_channel(self.vchannel_status)
+            type='embed', channel=self.get_channel(self.vchannel_status)
         )
         return name
 
@@ -521,7 +549,7 @@ class TestBot(discord.Client):
         if vchannel.members:
             return
 
-        print(f'{vchannel.guild} | Delete Vchannel | {str(vchannel)[len(self.vprefix)-1:]}') 
+        print(f'{vchannel.guild} | delete vchannel | {str(vchannel)[len(self.vprefix)-1:]}') 
 
         args = f'{str(vchannel)[len(self.vprefix)-1:]} | 成為了回憶', 'https://cdn-icons-png.flaticon.com/512/1978/1978026.png'
 
