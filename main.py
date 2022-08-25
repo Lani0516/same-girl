@@ -51,8 +51,19 @@ class TestBot(discord.Client):
         self.colour = discord.Colour(value=000000)
 
     def cleanup(self):
-        self.loop.run_until_complete(asyncio.run(self.close()))
-        self.loop.close()
+        try:
+            self.loop.run_until_complete(self.logout())
+            self.loop.run_until_complete(self.aiosession.close())
+
+            pending = asyncio.all_tasks()
+            gathered = asyncio.gather(*pending)
+
+            gathered.cancel()
+            self.loop.run_until_complete(gathered)
+            gathered.exception()
+
+        except:
+            pass
 
     def run(self):
         try:
@@ -66,8 +77,9 @@ class TestBot(discord.Client):
         finally:
             self.cleanup()
 
-    async def close(self):
-        print("\nClient is shutting down...")
+    async def logout(self):
+        print("\nClient is shutting down...\n")
+        await self.cmd_clear()
         return await super().close()
 
     async def on_ready(self):
@@ -84,7 +96,6 @@ class TestBot(discord.Client):
         _clear()
 
         await self.wait_until_ready()
-
         print("===========================================================",
               "|      ___           ___           ___           ___      |",
               "|     /\  \         /\  \         /\__\         /\  \     |",
@@ -99,10 +110,11 @@ class TestBot(discord.Client):
               "|     \/__/         \/__/         \/__/         \/__/     |",
               "|                                                         |",
               "===========================================================", sep='\n', end='\n')
-
         start_up = f'>>> Your Bot {str(self.user)[:-5]} is now Online' 
         print(start_up)
         print('-' * (len(start_up)+1)) 
+
+        await self.bg_task()
 
 ##############################################################
 
@@ -141,7 +153,7 @@ class TestBot(discord.Client):
             type='text', channel=exp_channel
         )
 
-    async def cmd_clear(self, guild, other):
+    async def cmd_clear(self, guild, other, channel=None):
         """
         Usage:
             {command_prefix}clear <object type>
@@ -160,6 +172,11 @@ class TestBot(discord.Client):
         type = other[0]
 
         if type == 'vchannel':
+            if channel:
+                await self.channel_send(
+                    "Clearing all vchannel...",
+                    type='text', channel=channel
+                )
             for channel in guild.voice_channels:
                 await self.del_vchannel(channel)
             return
@@ -254,6 +271,58 @@ class TestBot(discord.Client):
         embed.title = f'{emoji_prefix} {num}'
         return embed
 
+    """vchannel only"""
+    async def whitelist(self, channel, other):
+        if not other:
+            raise JustWrong("missing arguments")
+
+    async def blacklist(self, channel, other):
+        if not other:
+            raise JustWrong("missing arguments")
+
+    async def mute(self, author, channel, other):
+        ...
+
+    async def unmute(self, author, channel, other):
+        ...
+
+    async def deaf(self, author, channel, other):
+        ...
+
+    async def undeaf(self, author, channel, other):
+        ...
+
+    async def kick(self, channel, other):
+        if not other:
+            raise JustWrong("missing arguments")
+
+    async def coop(self, channel, other):
+        if not other:
+            raise JustWrong("missing arguments")
+
+        if other:
+            try:
+                user_list = [self.get_user(int(other[0][2:-1]))]
+            except ValueError:
+                user_list = []
+
+        if len(other) > 1:
+            del other[0]
+            for arg in other:
+                try:
+                    user_list.append(self.get_user(int(arg[2:-1])))
+                except:
+                    pass
+
+        if not user_list:
+            raise JustWrong("invalid user mention")
+
+        details = self.vchannel_details
+        for user in user_list:
+            details[str(channel.id)]['coop'].append(str(user))
+
+        self.vchannel_details.dump(details)
+
 ##############################################################
 
     async def on_voice_state_update(self, member, before, after):
@@ -297,7 +366,7 @@ class TestBot(discord.Client):
         author = self.get_channel(self.vchannel_create).last_message.author
         
         details = self.vchannel_details.data
-        details[str(channel_id)] = {'author': str(author), 'guild_id': guild_id}
+        details[str(channel_id)] = {'author': str(author), 'coop': [], 'guild_id': guild_id}
 
         # channel id: str, author: str, guild_id: int
         self.vchannel_details.dump(details)
@@ -317,7 +386,7 @@ class TestBot(discord.Client):
             for key in list(details):
                 if details[key]['guild_id'] == guild.id:
                     del details[key]
-            await self.cmd_clear(guild, ['vchannel'])
+            await self.cmd_clear(channel.guild, ['vchannel', ])
 
         self.vchannel_details.dump(details)
 
@@ -416,6 +485,28 @@ class TestBot(discord.Client):
                 type='text', channel=message.channel
             )
             return
+
+        details = self.vchannel_details.get(str(message.channel.id))
+
+        master_signal = False
+        if (
+            command in self.vchannel_commands
+            and details
+        ):
+            for key in list(details):
+                if (
+                    str(message.author) == details[key]
+                    or str(message.author) in details[key] 
+                ):
+                   master_signal = True
+                   break
+        
+            if not master_signal:
+                self.channel_send(
+                    "You are not one of the vchannel administrator",
+                    type='text', channel=message.channel
+                )
+                return
 
         target_kwargs = {}
         if params.pop('message', None):
@@ -555,13 +646,11 @@ class TestBot(discord.Client):
 
         embed = self.gen_embed(
             args,
-            style='line',
-            color=(124, 124, 124),
+            style='line', color=(124, 124, 124),
         )
         await self.channel_send(
-            response=embed,
-            type='embed',
-            channel=self.get_channel(self.vchannel_status)
+            embed,
+            type='embed', channel=self.get_channel(self.vchannel_status)
         )
         await vchannel.delete()
 
@@ -645,6 +734,14 @@ class TestBot(discord.Client):
             channel=channel
             )
         return "Done!"
+
+    async def bg_task(self):
+        c = 1
+        while False:
+        # while not self.is_closed():
+            print(f'I\'m running at {c} times.')
+            c += 1
+            await asyncio.sleep(5)
 
 ##############################################################
 
