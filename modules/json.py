@@ -17,7 +17,7 @@ class Json:
         try:
             data = self.data[item]
         except KeyError:
-            print(f'Could not get {item} in {self.file}')
+            print(f'| Could not get {item} in {self.file}')
             data = default
         return data
 

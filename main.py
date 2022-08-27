@@ -1,13 +1,14 @@
 import os
 import sys
 import time
-import json
 import asyncio
 import inspect
 import traceback
 
 import aiohttp
 import discord
+
+from discord.ext import commands
 
 from modules.json import Json
 from modules.exception import JustWrong
@@ -16,7 +17,7 @@ intents = discord.Intents.all()
 intents.typing = False
 intents.presences = False
 
-class TestBot(discord.Client):
+class TestBot(commands.Bot):
     def __init__(self):
         # TODO: log it in .ini file
         self.pg_con = None
@@ -26,14 +27,15 @@ class TestBot(discord.Client):
         self.vprefix = '☕️｜'
         self.game = discord.Game("/help || 加入SharkParty")
         self.token = 'MTAwMzkyNzYwMTY3NDQ2MTMwNA.GNkOdj.xQ-b4SwaXRPLYTglCOjZM94OTNgAUyW86h59IM'
+        self.colour = discord.Colour(value=000000)
 
         self.vchannel_create = 1011546109568634902
         self.vchannel_status = 1008425742092214352
         self.vchannel_blacklist = [
             1008422710692565082, # decorator
-            1008422750781722716, # decorator
+            1012416432790839367, # decorator
         ]
-        self.nchannel = 1010557329579724864
+        self.nchannel = 1008422710692565082
         self.vcategory = 1003922992805449779
 
         self.admin_commands = [
@@ -48,8 +50,8 @@ class TestBot(discord.Client):
         
         super().__init__(intents=intents)
 
-        self.colour = discord.Colour(value=000000)
-
+        self.remove_command('help')
+        
     def cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
@@ -147,6 +149,9 @@ class TestBot(discord.Client):
             other.pop(-1)
         
         content = ' '.join(other)
+
+        if not content:
+            raise JustWrong("missing content")
 
         await self.channel_send(
             response=content,
@@ -272,56 +277,235 @@ class TestBot(discord.Client):
         return embed
 
     """vchannel only"""
-    async def whitelist(self, channel, other):
+    async def cmd_whitelist(self, channel, other):
         if not other:
             raise JustWrong("missing arguments")
 
-    async def blacklist(self, channel, other):
+    async def cmd_blacklist(self, channel, other):
         if not other:
             raise JustWrong("missing arguments")
 
-    async def mute(self, author, channel, other):
-        ...
+    async def cmd_mute(self, author, guild, channel, user_mentions: list):
+        if user_mentions:
+            member_list = [guild.get_member(user) for user in user_mentions]
+        else:
+            member_list = [author]
+        
+        m = await self.change_voice_state(
+            member_list,
+            type='mute', channel=channel
+        )
+        n = self.gen_embed(
+            style='empty'
+        )
+        if not m: return
 
-    async def unmute(self, author, channel, other):
-        ...
+        if m[0]:
+            n.add_field(
+                name='Mute Member',
+                value=f"> {', '.join([member.mention for member in m[0]])}", inline=False
+            )
+        if m[1]:
+            n.add_field(
+                name='Different Channel',
+                value=f"> {', '.join([member.mention for member in m[1]])}", inline=False
+            )
+        if m[2]:
+            n.add_field(
+                name='Already Muted',
+                value=f"> {', '.join([member.mention for member in m[2]])}", inline=False
+            )
+        await self.channel_send(
+            n,
+            type='embed', channel=channel
+        )
+        return
 
-    async def deaf(self, author, channel, other):
-        ...
+    async def cmd_unmute(self, author, guild, channel, user_mentions: list):
+        if user_mentions:
+            member_list = [guild.get_member(user) for user in user_mentions]
+        else:
+            member_list = [author]
+        
+        m = await self.change_voice_state(
+            member_list,
+            type='unmute', channel=channel
+        )
+        n = self.gen_embed(
+            style='empty'
+        )
+        if not m: return
 
-    async def undeaf(self, author, channel, other):
-        ...
+        if m[0]:
+            n.add_field(
+                name='Unmute Member',
+                value=f"> {', '.join([member.mention for member in m[0]])}", inline=False
+            )
+        if m[1]:
+            n.add_field(
+                name='Different Channel',
+                value=f"> {', '.join([member.mention for member in m[1]])}", inline=False
+            )
+        if m[2]:
+            n.add_field(
+                name='Already Unmuted',
+                value=f"> {', '.join([member.mention for member in m[2]])}", inline=False
+            )
+        await self.channel_send(
+            n,
+            type='embed', channel=channel
+        )
+        return
 
-    async def kick(self, channel, other):
-        if not other:
-            raise JustWrong("missing arguments")
+    async def cmd_deaf(self, author, guild, channel, user_mentions: list):
+        if user_mentions:
+            member_list = [guild.get_member(user) for user in user_mentions]
+        else:
+            member_list = [author]
+        
+        m = await self.change_voice_state(
+            member_list,
+            type='deaf', channel=channel
+        )
+        n = self.gen_embed(
+            style='empty'
+        )
+        if not m: return
 
-    async def coop(self, channel, other):
+        if m[0]:
+            n.add_field(
+                name='Deafen Member',
+                value=f"> {', '.join([member.mention for member in m[0]])}", inline=False
+            )
+        if m[1]:
+            n.add_field(
+                name='Different Channel',
+                value=f"> {', '.join([member.mention for member in m[1]])}", inline=False
+            )
+        if m[2]:
+            n.add_field(
+                name='Already Deafened',
+                value=f"> {', '.join([member.mention for member in m[2]])}", inline=False
+            )
+        await self.channel_send(
+            n,
+            type='embed', channel=channel
+        )
+        return
+
+    async def cmd_undeaf(self, author, guild, channel, user_mentions: list):
+        if user_mentions:
+            member_list = [guild.get_member(user) for user in user_mentions]
+        else:
+            member_list = [author]
+        
+        m = await self.change_voice_state(
+            member_list,
+            type='undeaf', channel=channel
+        )
+        n = self.gen_embed(
+            style='empty'
+        )
+        if not m: return
+
+        if m[0]:
+            n.add_field(
+                name='Undeafen Member',
+                value=f"> {', '.join([member.mention for member in m[0]])}", inline=False
+            )
+        if m[1]:
+            n.add_field(
+                name='Different Channel',
+                value=f"> {', '.join([member.mention for member in m[1]])}", inline=False
+            )
+        if m[2]:
+            n.add_field(
+                name='Already Undeafened',
+                value=f"> {', '.join([member.mention for member in m[2]])}", inline=False
+            )
+        await self.channel_send(
+            n,
+            type='embed', channel=channel
+        )
+        return
+
+    async def cmd_kick(self, guild, channel, user_mentions: list):
+        """
+        Usage:
+            {command_prefix}kick <@User>
+        Example:
+            Kick @LandedWriter from this channel | kick @LandedWriter
+        Change:
+            None
+        Name:
+            kick
+        Return:
+            Kicked User
+        """
+        if user_mentions:
+            member_list = [guild.get_member(user) for user in user_mentions]
+        else:
+            raise JustWrong("missing user mention")
+
+        m = await self.change_voice_state(
+            member_list,
+            type='kick', channel=channel
+        )
+        n = self.gen_embed(
+            style='empty'
+        )
+        if not m: return
+
+        if m[0]:
+            n.add_field(
+                name='Kick Member',
+                value=f"> {', '.join([member.mention for member in m[0]])}", inline=False
+            )
+        if m[1]:
+            n.add_field(
+                name='Different Channel',
+                value=f"> {', '.join([member.mention for member in m[1]])}", inline=False
+            )
+        await self.channel_send(
+            n,
+            type='embed', channel=channel
+        )
+        return
+            
+    async def cmd_coop(self, guild, channel, other):
+        """
+        Usage:
+            {command_prefix}coop <@User>
+        Example:
+            Give @LandedWriter this channel's admin role | coop @LandedWriter
+        Change:
+            None
+        Name:
+            coop
+        Return:
+            Added User
+        """
+        member_list = []
+        
         if not other:
             raise JustWrong("missing arguments")
 
         if other:
-            try:
-                user_list = [self.get_user(int(other[0][2:-1]))]
-            except ValueError:
-                user_list = []
+            member_list, leftover_args = self.check_member_mention(guild, other)
 
-        if len(other) > 1:
-            del other[0]
-            for arg in other:
-                try:
-                    user_list.append(self.get_user(int(arg[2:-1])))
-                except:
-                    pass
-
-        if not user_list:
+        if not member_list:
             raise JustWrong("invalid user mention")
 
-        details = self.vchannel_details
-        for user in user_list:
+        details = self.vchannel_details.data
+        for user in member_list:
             details[str(channel.id)]['coop'].append(str(user))
 
         self.vchannel_details.dump(details)
+        await self.channel_send(
+            f"Added {', '.join([member.mention for member in member_list])} to this channel coop.",
+            type='text', channel=channel
+        )
+        return
 
 ##############################################################
 
@@ -341,6 +525,9 @@ class TestBot(discord.Client):
             
         elif not join and leave: # change
             content, color = f'{member.display_name} | 離開 {str(before.channel)[len(self.vprefix)-1:]}', None
+        
+        elif join and leave:
+            return # other voice state update
 
         else: # leave only
             content, color = f'{member.display_name} | {str(before.channel)[len(self.vprefix)-1:]} 移到 {str(after.channel)[len(self.vprefix)-1:]}', (216, 176, 107)
@@ -486,24 +673,26 @@ class TestBot(discord.Client):
             )
             return
 
-        details = self.vchannel_details.get(str(message.channel.id))
+        details = None
+
+        if command in self.vchannel_commands:
+            details = self.vchannel_details.get(str(message.channel.id))
 
         master_signal = False
-        if (
-            command in self.vchannel_commands
-            and details
-        ):
+        if details:
             for key in list(details):
-                if (
-                    str(message.author) == details[key]
-                    or str(message.author) in details[key] 
-                ):
-                   master_signal = True
-                   break
+                if key == 'author':
+                    if str(message.author) == details[key]:
+                        master_signal = True
+                if key == 'coop':
+                    if str(message.author) in details[key]:
+                        master_signal = True
+                if master_signal:
+                    break
         
             if not master_signal:
-                self.channel_send(
-                    "You are not one of the vchannel administrator",
+                await self.channel_send(
+                    "You are not one of the vchannel administrator.",
                     type='text', channel=message.channel
                 )
                 return
@@ -521,8 +710,8 @@ class TestBot(discord.Client):
         if params.pop('guild', None):
             target_kwargs['guild'] = message.guild
 
-        if params.pop('user_mention', None):
-            target_kwargs['user_mention'] = message.raw_mentions
+        if params.pop('user_mentions', None):
+            target_kwargs['user_mentions'] = message.raw_mentions
 
         if params.pop('other', None):
             target_kwargs['other'] = [i.strip() for i in args]
@@ -576,7 +765,7 @@ class TestBot(discord.Client):
 
 ##############################################################
 
-    async def channel_send(self, response, type, channel):
+    async def channel_send(self, response, channel, type='text'):
         if type == 'text':
             await channel.send(
                 content=response
@@ -587,6 +776,42 @@ class TestBot(discord.Client):
             )
         else:
             print("Send unknown type.")
+
+    async def change_voice_state(self, members, type, channel):
+        if type.endswith('mute'):
+            _type = ['mute', 'mute']
+        elif type.endswith('deaf'):
+            _type = ['deaf', 'deafen']
+        elif type.endswith('kick'):
+            _type = ['kick', 'kick']
+        else:
+            return
+
+        p = []
+        np = []
+
+        if type.startswith('un'):
+            _type.append(False)
+        else:
+            _type.append(True)
+
+        target_kwargs = {_type[1]: _type[2]}
+
+        for member in members:
+            if getattr(member.voice, 'channel', None) != channel:
+                members.remove(member)
+                np.append(member)
+            else:
+                if type == 'kick':
+                    await member.move_to(None)
+                    continue
+                if getattr(member.voice, _type[0]) == _type[2]:
+                    members.remove(member)
+                    p.append(member)
+                else:
+                    target = getattr(member, 'edit')
+                    await target(**target_kwargs)         
+        return [members, np, p]
 
     async def gen_vchannel(self, vchannel, guild, channel, author):
         # use catergory.create_voice_channel
@@ -715,7 +940,6 @@ class TestBot(discord.Client):
                 return embed
 
         print("Unknown embed style. Returning back empty one.\n")
-
         return embed
 
     async def n_translator(self, number, channel):
