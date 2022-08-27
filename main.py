@@ -22,7 +22,7 @@ class TestBot(commands.Bot):
         # TODO: log it in .ini file
         self.pg_con = None
         self.BOTVERSION = 'v0.1.0'
-        self.embed_color = (191, 120, 120)
+        self.embed_color = (150, 194, 208)
         self.prefix = '>>'
         self.vprefix = '☕️｜'
         self.game = discord.Game("/help || 加入SharkParty")
@@ -172,7 +172,7 @@ class TestBot(commands.Bot):
             None
         """
         if not other:
-            raise JustWrong("missing arguments")
+            raise JustWrong("missing argument")
         
         type = other[0]
 
@@ -276,16 +276,143 @@ class TestBot(commands.Bot):
         embed.title = f'{emoji_prefix} {num}'
         return embed
 
+    async def cmd_docs(self, channel, other):
+        """
+        Usage:
+            {command_prefix}docs <comand>
+        Example:
+            Getting docs of command ping | docs ping
+        Change:
+            None
+        Name:
+            docs
+        Return:
+            Docs of Input Command
+        """
+        if other:
+            command = other[0]
+        else:
+            raise JustWrong("missing argument")
+
+        try:
+            target = getattr(self, 'cmd_' + command)
+        except:
+            raise JustWrong("unknown command")
+
+        docs = getattr(target, '__doc__', None)
+        docs = [line.strip() for line in docs.strip().split('\n')]
+
+        args = docs[-3], docs[-1], docs[1][16:], docs[3].split(' | ')
+        if not docs[4].startswith('Change'):
+            args = docs[-3], docs[-1], docs[1][16:], docs[3].split(' | '), docs[4].split(' | ')
+
+        embed = self.gen_embed(
+            args,
+            style='docs', color=(150, 194, 208), imp=True, err=False
+        )
+        return embed
+
     """vchannel only"""
-    async def cmd_whitelist(self, channel, other):
+    async def cmd_whitelist(self, guild, channel, user_mention, other):
         if not other:
-            raise JustWrong("missing arguments")
+            raise JustWrong("missing argument")
 
-    async def cmd_blacklist(self, channel, other):
+    async def cmd_blacklist(self, guild, channel, user_mentions, other):
+        """
+        Usage:
+            {command_prefix}blacklist < + | - | add | remove > <@User>
+        Example:
+            Add @LandedWriter to blacklist | blacklist add @LandedWriter
+            Remove @LandedWriter from blacklist | blacklist - @LandedWriter
+        Change:
+            None
+        Name:
+            blacklist
+        Return:
+            Blacklisted User
+        """
+        if user_mentions:
+            member_list = [guild.get_member(user) for user in user_mentions]
+        else:
+            raise JustWrong("missing user mention")
+
+        embed = self.gen_embed()
+
         if not other:
-            raise JustWrong("missing arguments")
+            raise JustWrong("missing argument")
 
-    async def cmd_mute(self, author, guild, channel, user_mentions: list):
+        np = []
+
+        if (
+            other[0] == '+'
+            or other[0] == 'add'
+        ):
+            for member in member_list:
+                if not channel.permissions_for(member).connect:
+                    member_list.remove(member)
+                    np.append(member)
+                    continue
+                if getattr(member.voice, 'channel', None) == channel:
+                    await member.move_to(None)
+                await channel.set_permissions(member, connect=False, send_messages=False)
+            if member_list:
+                embed.add_field(
+                    name='Blacklist Member',
+                    value=f"> {', '.join([member.mention for member in member_list])}", inline=False
+                )
+            if np:
+                embed.add_field(
+                    name='Already Blacklisted',
+                    value=f"> {', '.join([member.mention for member in np])}", inline=False
+                )
+            await self.channel_send(
+                embed,
+                type='embed', channel=channel
+            )
+            return
+
+        if (
+            other[0] == '-'
+            or other[0] == 'remove'
+        ):
+            for member in member_list:
+                if channel.permissions_for(member).connect:
+                    member_list.remove(member)
+                    np.append(member)
+                    continue
+                await channel.set_permissions(member, connect=True, send_messages=True)
+            if member_list:
+                embed.add_field(
+                    name='Unblacklist Member',
+                    value=f"> {', '.join([member.mention for member in member_list])}", inline=False
+                )
+            if np:
+                embed.add_field(
+                    name='Not Blacklisted',
+                    value=f"> {', '.join([member.mention for member in np])}", inline=False
+                )
+            await self.channel_send(
+                embed,
+                type='embed', channel=channel
+            )
+            return
+
+        raise JustWrong("invalid arguments")
+
+    async def cmd_mute(self, author, guild, channel, user_mentions):
+        """
+        Usage:
+            {command_prefix}mute [@User]
+        Example:
+            Mute yourself | mute
+            Mute @LandedWriter | mute @LandedWriter
+        Change:
+            None
+        Name:
+            mute
+        Return:
+            Mute User
+        """
         if user_mentions:
             member_list = [guild.get_member(user) for user in user_mentions]
         else:
@@ -321,7 +448,20 @@ class TestBot(commands.Bot):
         )
         return
 
-    async def cmd_unmute(self, author, guild, channel, user_mentions: list):
+    async def cmd_unmute(self, author, guild, channel, user_mentions):
+        """
+        Usage:
+            {command_prefix}unmute [@User]
+        Example:
+            Unmute yourself | unmute
+            Unmute @LandedWriter | unmute @LandedWriter
+        Change:
+            None
+        Name:
+            unmute
+        Return:
+            Unmute User
+        """
         if user_mentions:
             member_list = [guild.get_member(user) for user in user_mentions]
         else:
@@ -357,7 +497,20 @@ class TestBot(commands.Bot):
         )
         return
 
-    async def cmd_deaf(self, author, guild, channel, user_mentions: list):
+    async def cmd_deaf(self, author, guild, channel, user_mentions):
+        """
+        Usage:
+            {command_prefix}deaf [@User]
+        Example:
+            Deafen yourself | deaf
+            Deafen @LandedWriter | deaf @LandedWriter
+        Change:
+            None
+        Name:
+            deaf
+        Return:
+            Deafen User
+        """
         if user_mentions:
             member_list = [guild.get_member(user) for user in user_mentions]
         else:
@@ -393,7 +546,20 @@ class TestBot(commands.Bot):
         )
         return
 
-    async def cmd_undeaf(self, author, guild, channel, user_mentions: list):
+    async def cmd_undeaf(self, author, guild, channel, user_mentions):
+        """
+        Usage:
+            {command_prefix}undeaf [@User]
+        Example:
+            Undeafen yourself | undeaf
+            Undeafen @LandedWriter | undeaf @LandedWriter
+        Change:
+            None
+        Name:
+            undeaf
+        Return:
+            Undeafen User
+        """
         if user_mentions:
             member_list = [guild.get_member(user) for user in user_mentions]
         else:
@@ -429,7 +595,7 @@ class TestBot(commands.Bot):
         )
         return
 
-    async def cmd_kick(self, guild, channel, user_mentions: list):
+    async def cmd_kick(self, guild, channel, user_mentions):
         """
         Usage:
             {command_prefix}kick <@User>
@@ -472,7 +638,7 @@ class TestBot(commands.Bot):
         )
         return
             
-    async def cmd_coop(self, guild, channel, other):
+    async def cmd_coop(self, guild, channel, user_mentions):
         """
         Usage:
             {command_prefix}coop <@User>
@@ -485,16 +651,10 @@ class TestBot(commands.Bot):
         Return:
             Added User
         """
-        member_list = []
-        
-        if not other:
-            raise JustWrong("missing arguments")
-
-        if other:
-            member_list, leftover_args = self.check_member_mention(guild, other)
-
-        if not member_list:
-            raise JustWrong("invalid user mention")
+        if user_mentions:
+            member_list = [guild.get_member(user) for user in user_mentions]
+        else:
+            raise JustWrong("missing user mention")
 
         details = self.vchannel_details.data
         for user in member_list:
@@ -521,10 +681,10 @@ class TestBot(commands.Bot):
         content = str()
         
         if join and not leave: # join only
-            content, color = f'{member.display_name} | 加入 {str(after.channel)[len(self.vprefix)-1:]}', (150, 194, 208)
+            content, color = f'{member.display_name} | 加入 {str(after.channel)[len(self.vprefix)-1:]}', None
             
         elif not join and leave: # change
-            content, color = f'{member.display_name} | 離開 {str(before.channel)[len(self.vprefix)-1:]}', None
+            content, color = f'{member.display_name} | 離開 {str(before.channel)[len(self.vprefix)-1:]}', (191, 120, 120)
         
         elif join and leave:
             return # other voice state update
@@ -697,6 +857,11 @@ class TestBot(commands.Bot):
                 )
                 return
 
+        args = [i.strip() for i in args]
+
+        for mention in message.raw_mentions:
+            args.remove('<@'+str(mention)+'>')
+
         target_kwargs = {}
         if params.pop('message', None):
             target_kwargs['message'] = message
@@ -714,7 +879,7 @@ class TestBot(commands.Bot):
             target_kwargs['user_mentions'] = message.raw_mentions
 
         if params.pop('other', None):
-            target_kwargs['other'] = [i.strip() for i in args]
+            target_kwargs['other'] = args
 
         response = None
 
@@ -734,7 +899,7 @@ class TestBot(commands.Bot):
 
             response = self.gen_embed(
                 args,
-                style='error', imp=True
+                style='docs', imp=True, err=True
             )
 
             response.description = f'> {error.message}'
@@ -879,7 +1044,7 @@ class TestBot(commands.Bot):
         )
         await vchannel.delete()
 
-    def gen_embed(self, *args, style='empty', color=None, imp=False):
+    def gen_embed(self, *args, style='empty', color=None, imp=False, err=False):
         """Provides a basic template for embeds."""
         embed = discord.Embed()
 
@@ -907,39 +1072,41 @@ class TestBot(commands.Bot):
             embed.set_author(name=args[0], icon_url=args[1])
             return embed
         
-        if style == 'error':
-            embed.set_author(name=' | Error Raised', icon_url='https://cdn-icons-png.flaticon.com/512/5219/5219070.png')
-            try:
+        if style == 'docs':
+            embed.title = f'Help of using {args[0].capitalize()}'
+            embed.description = "> hope this helps you out"
+            embed.set_author(name='| How To Command', icon_url='https://cdn-icons-png.flaticon.com/512/305/305098.png')
+
+            value = None
+            
+            try: args[4]
+            except: value = f'1. {args[3][0]}\n```{self.prefix}{args[3][1]}```'
+
+            if not value: value = f'1. {args[3][0]}\n```{self.prefix}{args[3][1]}```\n2. {args[4][0]}\n```{self.prefix}{args[4][1]}```'
+
+            embed.add_field(
+                name='Usage',
+                value=f'- <imp> - [n-imp] -\n```{args[2]}```',
+                inline=False
+            )
+            embed.add_field(
+                name='Example',
+                value=value,
+                inline=False
+            )
+            embed.add_field(
+                name='Return',
+                value=f'```{args[1]}```',
+                inline=False
+            )
+            if err:
                 embed.title = f'Error of using {args[0].capitalize()}'
+                embed.set_author(name='| Error Raised', icon_url='https://cdn-icons-png.flaticon.com/512/5219/5219070.png')
+                embed.color = self.colour.from_rgb(191, 120, 120)
+            return embed
 
-                value = None
-                
-                try: args[4]
-                except: value = f'1. {args[3][0]}\n```{self.prefix}{args[3][1]}```'
+        print("| Unknown embed style. Returning back empty one.\n")
 
-                if not value: value = f'1. {args[3][0]}\n```{self.prefix}{args[3][1]}```\n2. {args[4][0]}\n```{self.prefix}{args[4][1]}```'
-
-                embed.add_field(
-                    name='Usage',
-                    value=f'- <imp> - [n-imp] -\n```{args[2]}```',
-                    inline=False
-                )
-                embed.add_field(
-                    name='Example',
-                    value=value,
-                    inline=False
-                )
-                embed.add_field(
-                    name='Return',
-                    value=f'```{args[1]}```',
-                    inline=False
-                )
-                return embed
-            except:
-                print("Creating author only error embed\n")
-                return embed
-
-        print("Unknown embed style. Returning back empty one.\n")
         return embed
 
     async def n_translator(self, number, channel):
