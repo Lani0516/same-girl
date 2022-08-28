@@ -22,6 +22,8 @@ class Slash(commands.Cog):
         response = await handler(**handler_kwargs)
 
         await ctx.send_response(embed=response)
+        # object = await ctx.send_response(embed=response, view=HelpView.Main())
+        # print(object)
 
     @slash_command(description="get client latency")
     async def ping(

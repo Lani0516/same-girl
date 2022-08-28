@@ -11,6 +11,7 @@ import discord
 from discord.ext import commands
 
 from extensions.json import Json
+from extensions.view import HelpMain
 from extensions.exception import JustWrong
 
 intents = discord.Intents.all()
@@ -48,9 +49,9 @@ class Samegirl(commands.Bot):
         
         self.vchannel_details.dump({})
 
-        super().__init__(intents=intents, command_prefix='~~~', debug_guilds=[1003922991769464922])
+        super().__init__(intents=intents, command_prefix='~', debug_guilds=[1003922991769464922])
 
-        self.load_extension("extensions.slash")
+        self.load_extensions("extensions.slash", "extensions.view")
         
     def cleanup(self):
         try:
@@ -195,7 +196,7 @@ class Samegirl(commands.Bot):
         print("Unknown Type\n")
 
     """global"""
-    async def cmd_help(self, author, other):
+    async def cmd_help(self, author, channel, other):
         """
         Usage:
             {command_prefix}help [command]
@@ -218,7 +219,23 @@ class Samegirl(commands.Bot):
             except JustWrong:
                 pass
         
-        embed = self.gen_embed(imp=True)
+        embed = self.gen_embed(imp=True, ava=True)
+
+        embed.description="Gonna Test Help"
+
+        if author.guild_permissions.administrator:
+            pass
+
+        await channel.send(
+            embed=embed,
+            view=HelpMain(
+                bot=self,
+                author=author,
+                channel=channel
+            )
+        )
+
+        return
 
         if author.guild_permissions.administrator:
             cmd = '\n> '.join(self.admin_commands)
@@ -1130,7 +1147,7 @@ class Samegirl(commands.Bot):
         )
         await vchannel.delete()
 
-    def gen_embed(self, *args, style='empty', color=None, imp=False, err=False):
+    def gen_embed(self, *args, style='empty', color=None, imp=False, err=False, ava=False):
         """Provides a basic template for embeds."""
         embed = discord.Embed()
 
@@ -1149,6 +1166,9 @@ class Samegirl(commands.Bot):
 
         if imp:
             embed.set_footer(text=f'LandedWriter ∙ TestBot {self.BOTVERSION}', icon_url='https://cdn.discordapp.com/attachments/771941194207985694/1005882566580113558/3980-blonde-neko-scared.png')
+
+        if ava:
+            embed.set_author(name="| サメガール", icon_url=self.user.avatar)
 
         # add some style
         if style == 'empty':
