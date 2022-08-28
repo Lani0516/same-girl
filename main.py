@@ -10,18 +10,18 @@ import discord
 
 from discord.ext import commands
 
-from modules.json import Json
-from modules.exception import JustWrong
+from extensions.json import Json
+from extensions.exception import JustWrong
 
 intents = discord.Intents.all()
 intents.typing = False
 intents.presences = False
 
-class TestBot(commands.Bot):
+class Samegirl(commands.Bot):
     def __init__(self):
         # TODO: log it in .ini file
         self.pg_con = None
-        self.BOTVERSION = 'v0.1.0'
+        self.BOTVERSION = 'v0.2.0'
         self.embed_color = (150, 194, 208)
         self.prefix = '>>'
         self.vprefix = '☕️｜'
@@ -44,13 +44,13 @@ class TestBot(commands.Bot):
         self.vchannel_commands = [
             'name', 'whitelist', 'blacklist', 'mute', 'unmute', 'deaf', 'undeaf', 'kick', 'coop'
         ]
-        self.vchannel_details = Json('config/vchannel.json')
+        self.vchannel_details = Json("config/vchannel.json")
         
         self.vchannel_details.dump({})
-        
-        super().__init__(intents=intents)
 
-        self.remove_command('help')
+        super().__init__(intents=intents, command_prefix='~~~', debug_guilds=[1003922991769464922])
+
+        self.load_extension("extensions.slash")
         
     def cleanup(self):
         try:
@@ -114,8 +114,7 @@ class TestBot(commands.Bot):
               "===========================================================", sep='\n', end='\n')
         start_up = f'>>> Your Bot {str(self.user)[:-5]} is now Online' 
         print(start_up)
-        print('-' * (len(start_up)+1)) 
-
+        print('-' * (len(start_up)+1))
         await self.bg_task()
 
 ##############################################################
@@ -130,6 +129,8 @@ class TestBot(commands.Bot):
             Send Hello World in Lobby with channel id | send Hello World 1003922992805449780 
         Change:
             None
+        Description:
+            send input content
         Name:
             send
         Return:
@@ -166,6 +167,8 @@ class TestBot(commands.Bot):
             Clear all vchannel which are not in blacklist | clear vchannel
         Change:
             None
+        Description:
+            clear target object
         Name:
             clear
         Return:
@@ -192,8 +195,60 @@ class TestBot(commands.Bot):
         print("Unknown Type\n")
 
     """global"""
-    async def cmd_help(self):
-        pass
+    async def cmd_help(self, author, other):
+        """
+        Usage:
+            {command_prefix}help [command]
+        Example:
+            Show all command | help
+            Show ping usage | help ping
+        Change:
+            None
+        Description:
+            generate command docs
+        Name:
+            help
+        Return:
+            Docs
+        """
+        if other:
+            try:
+                embed = await self.cmd_docs(other)
+                return embed
+            except JustWrong:
+                pass
+        
+        embed = self.gen_embed(imp=True)
+
+        if author.guild_permissions.administrator:
+            cmd = '\n> '.join(self.admin_commands)
+            embed.add_field(
+                name='Admin Only',
+                value=f"> {cmd}", inline=False
+            )
+
+        commands = []
+
+        for att in dir(self):
+            if att.startswith("cmd_"):
+                if (
+                    att[4:] not in self.admin_commands
+                    and att[4:] not in self.vchannel_commands
+                ):
+                    commands.append(att[4:])
+
+        cmd = '\n> '.join(commands)
+        embed.add_field(
+            name='General Command',
+            value=f"> {cmd}", inline=False
+        )
+        cmd = '\n> '.join(self.vchannel_commands)
+        embed.add_field(
+            name='Vchannel Only',
+            value=f"> {cmd}", inline=False
+        )
+        return embed
+            
 
     async def cmd_ping(self):
         """
@@ -203,6 +258,8 @@ class TestBot(commands.Bot):
             Getting Client Latency | ping
         Change:
             None
+        Description:
+            get client latency
         Name:
             ping
         Return:
@@ -223,6 +280,8 @@ class TestBot(commands.Bot):
             Getting @LandedWriter's avatar | avatar @LandedWriter
         Change:
             None
+        Description:
+            generate user's avatar image
         Name:
             avatar
         Return:
@@ -244,6 +303,34 @@ class TestBot(commands.Bot):
         embed.set_image(url=author.avatar.url)
         return embed
 
+    async def cmd_id(self, author, user_mentions):
+        """
+        Usage:
+            {command_prefix}id
+        Example:
+            Get your own id | id
+            Get @LandedWriter's id | id @LandedWriter
+        Change:
+            None
+        Description:
+            get users' id
+        Name:
+            id
+        Return:
+            Users' Id
+        """
+        if not user_mentions:
+            user_mentions = [author.id]
+
+        embed = self.gen_embed()
+
+        for user in user_mentions:
+            embed.add_field(
+                name=self.get_user(user).display_name,
+                value=f'> {user}', inline=False
+            )
+        return embed
+
     async def cmd_sum(self, other):
         """
         Usage:
@@ -253,6 +340,8 @@ class TestBot(commands.Bot):
             Getting the sum of multiple nums | sum 1 5 10 15 20
         Change:
             None
+        Description:
+            help you do some math
         Name:
             sum
         Return:
@@ -276,7 +365,7 @@ class TestBot(commands.Bot):
         embed.title = f'{emoji_prefix} {num}'
         return embed
 
-    async def cmd_docs(self, channel, other):
+    async def cmd_docs(self, other, err=False):
         """
         Usage:
             {command_prefix}docs <comand>
@@ -284,6 +373,8 @@ class TestBot(commands.Bot):
             Getting docs of command ping | docs ping
         Change:
             None
+        Description:
+            generate command's document
         Name:
             docs
         Return:
@@ -302,13 +393,13 @@ class TestBot(commands.Bot):
         docs = getattr(target, '__doc__', None)
         docs = [line.strip() for line in docs.strip().split('\n')]
 
-        args = docs[-3], docs[-1], docs[1][16:], docs[3].split(' | ')
+        args = docs[-5], docs[-3], docs[-1], docs[1][16:], docs[3].split(' | ')
         if not docs[4].startswith('Change'):
-            args = docs[-3], docs[-1], docs[1][16:], docs[3].split(' | '), docs[4].split(' | ')
+            args = docs[-5], docs[-3], docs[-1], docs[1][16:], docs[3].split(' | '), docs[4].split(' | ')
 
         embed = self.gen_embed(
             args,
-            style='docs', color=(150, 194, 208), imp=True, err=False
+            style='docs', color=(150, 194, 208), imp=True, err=err
         )
         return embed
 
@@ -326,6 +417,8 @@ class TestBot(commands.Bot):
             Remove @LandedWriter from blacklist | blacklist - @LandedWriter
         Change:
             None
+        Description:
+            block user from this vchannel
         Name:
             blacklist
         Return:
@@ -408,6 +501,8 @@ class TestBot(commands.Bot):
             Mute @LandedWriter | mute @LandedWriter
         Change:
             None
+        Description:
+            mute user in this channel
         Name:
             mute
         Return:
@@ -457,6 +552,8 @@ class TestBot(commands.Bot):
             Unmute @LandedWriter | unmute @LandedWriter
         Change:
             None
+        Description:
+            unmute user in this channel
         Name:
             unmute
         Return:
@@ -506,6 +603,8 @@ class TestBot(commands.Bot):
             Deafen @LandedWriter | deaf @LandedWriter
         Change:
             None
+        Description:
+            deaf user in this channel
         Name:
             deaf
         Return:
@@ -555,6 +654,8 @@ class TestBot(commands.Bot):
             Undeafen @LandedWriter | undeaf @LandedWriter
         Change:
             None
+        Description:
+            undeaf user in this channel
         Name:
             undeaf
         Return:
@@ -603,6 +704,8 @@ class TestBot(commands.Bot):
             Kick @LandedWriter from this channel | kick @LandedWriter
         Change:
             None
+        Description:
+            kick user from this channel
         Name:
             kick
         Return:
@@ -646,6 +749,8 @@ class TestBot(commands.Bot):
             Give @LandedWriter this channel's admin role | coop @LandedWriter
         Change:
             None
+        Description:
+            give user this channel's admin permission
         Name:
             coop
         Return:
@@ -746,7 +851,6 @@ class TestBot(commands.Bot):
         message_content = message.content.strip()
 
         """Nhentai Translator"""
-        # build it into a function for better returning
         stop = None
 
         stop = await self.n_translator(
@@ -760,13 +864,6 @@ class TestBot(commands.Bot):
             return
 
         """Vchannel Creator"""
-        # create | [name] < | [limit] >
-        # 1. message.author -> highest perm. of this vchannel
-        # make this into a function
-        # 2. use vchannel private channel to set perm.
-        # | log vchannel into a file
-        # | send usage when created
-        # | json ? 
         if message.channel == self.get_channel(self.vchannel_create):
             stop = await self.gen_vchannel(
                 message_content, 
@@ -890,18 +987,7 @@ class TestBot(commands.Bot):
             response = await target(**target_kwargs)
 
         except JustWrong as error:
-            docs = getattr(target, '__doc__', None)
-            docs = [line.strip() for line in docs.strip().split('\n')]
-
-            args = docs[-3], docs[-1], docs[1][16:], docs[3].split(' | ')
-            if not docs[4].startswith('Change'):
-                args = docs[-3], docs[-1], docs[1][16:], docs[3].split(' | '), docs[4].split(' | ')
-
-            response = self.gen_embed(
-                args,
-                style='docs', imp=True, err=True
-            )
-
+            response = await self.cmd_docs([command], err=True)
             response.description = f'> {error.message}'
 
         except ValueError:
@@ -1073,20 +1159,20 @@ class TestBot(commands.Bot):
             return embed
         
         if style == 'docs':
-            embed.title = f'Help of using {args[0].capitalize()}'
-            embed.description = "> hope this helps you out"
+            embed.title = f'Help of using {args[1].capitalize()}'
+            embed.description = f'> {args[0]}'
             embed.set_author(name='| How To Command', icon_url='https://cdn-icons-png.flaticon.com/512/305/305098.png')
 
             value = None
             
-            try: args[4]
-            except: value = f'1. {args[3][0]}\n```{self.prefix}{args[3][1]}```'
+            try: args[5]
+            except: value = f'1. {args[4][0]}\n```{self.prefix}{args[4][1]}```'
 
-            if not value: value = f'1. {args[3][0]}\n```{self.prefix}{args[3][1]}```\n2. {args[4][0]}\n```{self.prefix}{args[4][1]}```'
+            if not value: value = f'1. {args[4][0]}\n```{self.prefix}{args[4][1]}```\n2. {args[5][0]}\n```{self.prefix}{args[5][1]}```'
 
             embed.add_field(
                 name='Usage',
-                value=f'- <imp> - [n-imp] -\n```{args[2]}```',
+                value=f'- <imp> - [n-imp] -\n```{args[3]}```',
                 inline=False
             )
             embed.add_field(
@@ -1096,11 +1182,11 @@ class TestBot(commands.Bot):
             )
             embed.add_field(
                 name='Return',
-                value=f'```{args[1]}```',
+                value=f'```{args[2]}```',
                 inline=False
             )
             if err:
-                embed.title = f'Error of using {args[0].capitalize()}'
+                embed.title = f'Error of using {args[1].capitalize()}'
                 embed.set_author(name='| Error Raised', icon_url='https://cdn-icons-png.flaticon.com/512/5219/5219070.png')
                 embed.color = self.colour.from_rgb(191, 120, 120)
             return embed
@@ -1161,3 +1247,12 @@ class TestBot(commands.Bot):
             return 256000
         if tier == 3:
             return 384000
+
+    def get_docs_description(self, command) -> str:
+        target = getattr(self, 'cmd_' + command, None)
+        if not target:
+            return None
+        docs = getattr(target, '__doc__', None)
+        if not docs:
+            return None
+        return docs[-5]

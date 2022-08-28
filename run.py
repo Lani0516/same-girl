@@ -4,11 +4,10 @@ import sys
 import traceback
 
 def main():
-    
     try:
-        from main import TestBot
-        client = TestBot()
-        client.run()
+        from main import Samegirl
+        same = Samegirl()
+        same.run()
     
     except SyntaxError:
         traceback.print_exc()
