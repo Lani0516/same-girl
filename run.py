@@ -5,7 +5,7 @@ import traceback
 
 def main():
     try:
-        from main import Samegirl
+        from extensions.main import Samegirl
         same = Samegirl()
         same.run()
     

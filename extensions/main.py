@@ -10,48 +10,35 @@ import discord
 
 from discord.ext import commands
 
-from extensions.json import Json
-from extensions.view import HelpMain
-from extensions.exception import JustWrong
+from .tool import Tool
+from .json import Json
+from .view import HelpPrimary
+from .config import Config, ConfigDefaults
+from .exception import JustWrong
 
 intents = discord.Intents.all()
 intents.typing = False
 intents.presences = False
 
 class Samegirl(commands.Bot):
-    def __init__(self):
+    def __init__(self, config_file=None):
+
+        if config_file is None:
+            config_file = ConfigDefaults.config_file
+
+        self.config = Config(config_file)
+
         # TODO: log it in .ini file
-        self.pg_con = None
-        self.BOTVERSION = 'v0.2.0'
-        self.embed_color = (150, 194, 208)
-        self.prefix = '>>'
-        self.vprefix = '☕️｜'
-        self.game = discord.Game("/help || 加入SharkParty")
-        self.token = 'MTAwMzkyNzYwMTY3NDQ2MTMwNA.GNkOdj.xQ-b4SwaXRPLYTglCOjZM94OTNgAUyW86h59IM'
+        self.BOTVERSION = 'v0.3.0'
+
         self.colour = discord.Colour(value=000000)
 
-        self.vchannel_create = 1011546109568634902
-        self.vchannel_status = 1008425742092214352
-        self.vchannel_blacklist = [
-            1008422710692565082, # decorator
-            1012416432790839367, # decorator
-        ]
-        self.nchannel = 1008422710692565082
-        self.vcategory = 1003922992805449779
-
-        self.admin_commands = [
-            'send', 'clear' 
-        ]
-        self.vchannel_commands = [
-            'name', 'whitelist', 'blacklist', 'mute', 'unmute', 'deaf', 'undeaf', 'kick', 'coop'
-        ]
         self.vchannel_details = Json("config/vchannel.json")
-        
         self.vchannel_details.dump({})
 
         super().__init__(intents=intents, command_prefix='~', debug_guilds=[1003922991769464922])
 
-        self.load_extensions("extensions.slash", "extensions.view")
+        self.load_extensions("slash", "view")
         
     def cleanup(self):
         try:
@@ -70,7 +57,7 @@ class Samegirl(commands.Bot):
 
     def run(self):
         try:
-            self.loop.run_until_complete(self.start(self.token))
+            self.loop.run_until_complete(self.start(self.config._token))
         except discord.errors.LoginFailure:
             print(
                 "Client cannot login...\n",
@@ -81,13 +68,13 @@ class Samegirl(commands.Bot):
             self.cleanup()
 
     async def logout(self):
-        print("\nClient is shutting down...\n")
+        print("\nClient is shutting down...")
         await self.cmd_clear()
         return await super().close()
 
     async def on_ready(self):
         # change the presence into .ini
-        await self.change_presence(activity=self.game)
+        await self.change_presence(activity=discord.Game(self.config._activity))
 
         _clear = None
 
@@ -219,23 +206,27 @@ class Samegirl(commands.Bot):
             except JustWrong:
                 pass
         
-        embed = self.gen_embed(imp=True, ava=True)
+        embed = self.gen_embed(ava=True)
 
-        embed.description="Gonna Test Help"
+        embed.description=(
+            "Hello Everyone, Landed's here ! If you're watching this view...\n"
+            "that means: **You Must Have Problems Using Same-Girl !**  σ`∀´)σ\n"
+            "\n"
+            "<:announcement:1005815395967565834> Try to choose a category below.\n"
+            "\n"
+            "Visit my personal website: [Lani Home](https://www.youtube.com/watch?v=dQw4w9WgXcQ) | Join my server: [SharkParty](https://discord.gg/yuwuy)"
+        )
 
         if author.guild_permissions.administrator:
             pass
 
-        await channel.send(
-            embed=embed,
-            view=HelpMain(
-                bot=self,
-                author=author,
-                channel=channel
-            )
+        view = HelpPrimary(
+            bot=self,
+            author=author,
+            channel=channel
         )
 
-        return
+        return embed, view
 
         if author.guild_permissions.administrator:
             cmd = '\n> '.join(self.admin_commands)
@@ -288,7 +279,7 @@ class Samegirl(commands.Bot):
         embed.title = f'{emoji_prefix} {int(round(self.latency, 3)*1000)}ms'
         return embed
 
-    async def cmd_avatar(self, author, other):
+    async def cmd_avatar(self, author, user_mentions=[]):
         """
         Usage:
             {command_prefix}avatar [@User]
@@ -306,14 +297,8 @@ class Samegirl(commands.Bot):
         """
         emoji_prefix = '<:announcement:1005815395967565834>'
 
-        if other:
-            try:
-                author = self.get_user(int(other[0][2:-1]))
-            except ValueError:
-                author = None
-
-        if not author:
-            raise JustWrong("invalid user mention")
+        if user_mentions:
+            author = self.get_user(user_mentions[0])
 
         embed = self.gen_embed(style='empty', imp=True)
         embed.title = f'{emoji_prefix} {author}'
@@ -371,7 +356,7 @@ class Samegirl(commands.Bot):
         if len(other) <= 1:
             raise JustWrong("please input more than one number")
 
-        check = [self.is_int(i) for i in other]
+        check = [Tool.is_int(i) for i in other]
         if False in check:
             raise JustWrong("invalid input")
         
@@ -803,16 +788,16 @@ class Samegirl(commands.Bot):
         content = str()
         
         if join and not leave: # join only
-            content, color = f'{member.display_name} | 加入 {str(after.channel)[len(self.vprefix)-1:]}', None
+            content, color = f'{member.display_name} | 加入 {str(after.channel)[len(self.config._vchannel_prefix)-1:]}', None
             
         elif not join and leave: # change
-            content, color = f'{member.display_name} | 離開 {str(before.channel)[len(self.vprefix)-1:]}', (191, 120, 120)
+            content, color = f'{member.display_name} | 離開 {str(before.channel)[len(self.config._vchannel_prefix)-1:]}', (191, 120, 120)
         
         elif join and leave:
             return # other voice state update
 
         else: # leave only
-            content, color = f'{member.display_name} | {str(before.channel)[len(self.vprefix)-1:]} 移到 {str(after.channel)[len(self.vprefix)-1:]}', (216, 176, 107)
+            content, color = f'{member.display_name} | {str(before.channel)[len(self.config._vchannel_prefix)-1:]} 移到 {str(after.channel)[len(self.config._vchannel_prefix)-1:]}', (216, 176, 107)
 
         print(f'{member.guild} | {content}')
 
@@ -822,8 +807,7 @@ class Samegirl(commands.Bot):
             args,
             style='line', color=color
         )
-
-        await self.channel_send(response=embed, type='embed', channel=self.get_channel(self.vchannel_status))
+        await self.channel_send(response=embed, type='embed', channel=self.get_channel(int(self.config._vchannel_status)))
         await self.del_vchannel(before.channel)
 
     async def on_guild_channel_create(self, channel):
@@ -832,7 +816,7 @@ class Samegirl(commands.Bot):
 
         guild_id = channel.guild.id
         channel_id = channel.id
-        author = self.get_channel(self.vchannel_create).last_message.author
+        author = self.get_channel(int(self.config._vchannel_create)).last_message.author
         
         details = self.vchannel_details.data
         details[str(channel_id)] = {'author': str(author), 'coop': [], 'guild_id': guild_id}
@@ -881,23 +865,23 @@ class Samegirl(commands.Bot):
             return
 
         """Vchannel Creator"""
-        if message.channel == self.get_channel(self.vchannel_create):
+        if message.channel == self.get_channel(int(self.config._vchannel_create)):
             stop = await self.gen_vchannel(
                 message_content, 
                 guild=message.guild, channel=message.channel, author=message.author
             )
         
         if stop:
-            print(f'{message.guild} | {message.author} | generating vchannel >> {stop[len(self.vprefix):]}')
+            print(f'{message.guild} | {message.author} | generating vchannel >> {stop[len(self.config._vchannel_prefix):]}')
             return
 
         """Command Reader"""
         # Change the prefix to config someday
-        if not message.content.startswith(self.prefix):
+        if not message.content.startswith(self.config._command_prefix):
             return
 
         command, *args = message_content.split(' ')
-        command = command[len(self.prefix):].lower().strip()
+        command = command[len(self.config._command_prefix):].lower().strip()
 
         if args:
             args = ' '.join(args).lstrip(' ').split(' ')
@@ -928,7 +912,7 @@ class Samegirl(commands.Bot):
         params = argspec.parameters.copy()
 
         if (
-            command in self.admin_commands
+            command in self.config._admin_commands
             and not is_admin
         ):
             await self.channel_send(
@@ -938,7 +922,7 @@ class Samegirl(commands.Bot):
             return
 
         if (
-            command in self.vchannel_commands
+            command in self.config._vchannel_commands
             and str(message.channel.type) != 'voice'
         ):
             await self.channel_send(
@@ -949,7 +933,7 @@ class Samegirl(commands.Bot):
 
         details = None
 
-        if command in self.vchannel_commands:
+        if command in self.config._vchannel_commands:
             details = self.vchannel_details.get(str(message.channel.id))
 
         master_signal = False
@@ -1017,16 +1001,20 @@ class Samegirl(commands.Bot):
             print("No return gotten.\n")
             return
 
-        response_type = 'embed'
-
         if not response:
             print("| Command has no return")
             return
 
+        if isinstance(response, (tuple, list, set)):
+            await message.channel.send(
+                embed=response[0],
+                view=response[1]
+            )
+            return
+
         try:
-            await self.channel_send(
-                response,
-                type=response_type, channel=message.channel
+            await message.channel.send(
+                embed=response,
             )
         except TypeError:
             print("You make set somewhere.\n")
@@ -1083,8 +1071,8 @@ class Samegirl(commands.Bot):
 
     async def gen_vchannel(self, vchannel, guild, channel, author):
         # use catergory.create_voice_channel
-        # category -> self.vcategory
-        category = discord.utils.get(guild.categories, id=self.vcategory)
+        # category -> self.config._vcategory
+        category = discord.utils.get(guild.categories, id=int(self.config._vcategory))
         vchannel = [i.strip() for i in vchannel.split('|')]
 
         if not category:
@@ -1094,7 +1082,7 @@ class Samegirl(commands.Bot):
         if not vchannel[0] == "create":
             return
 
-        name = f'{self.vprefix}{vchannel[1]}'
+        name = f'{self.config._vchannel_prefix}{vchannel[1]}'
         
         try:
             limit = vchannel.pop(2)
@@ -1111,7 +1099,7 @@ class Samegirl(commands.Bot):
 
         await category.create_voice_channel(name, user_limit=limit, bitrate=self.get_bitrate(guild), position=1)
 
-        args = f'{author.display_name} | 創建了 {name[len(self.vprefix):]}', author.display_avatar
+        args = f'{author.display_name} | 創建了 {name[len(self.config._vchannel_prefix):]}', author.display_avatar
 
         embed = self.gen_embed(
             args,
@@ -1119,7 +1107,7 @@ class Samegirl(commands.Bot):
         )
         await self.channel_send(
             response=embed,
-            type='embed', channel=self.get_channel(self.vchannel_status)
+            type='embed', channel=self.get_channel(int(self.config._vchannel_status))
         )
         return name
 
@@ -1127,15 +1115,18 @@ class Samegirl(commands.Bot):
         if not vchannel:
             return
 
-        if vchannel.id in self.vchannel_blacklist:
+        if self.config._vchannel_blacklist:
+            blacklist = [int(i) for i in self.config._vchannel_blacklist.split()]
+
+        if vchannel.id in blacklist:
             return
 
         if vchannel.members:
             return
 
-        print(f'{vchannel.guild} | delete vchannel | {str(vchannel)[len(self.vprefix)-1:]}') 
+        print(f'{vchannel.guild} | delete vchannel | {str(vchannel)[len(self.config._vchannel_prefix)-1:]}') 
 
-        args = f'{str(vchannel)[len(self.vprefix)-1:]} | 成為了回憶', 'https://cdn-icons-png.flaticon.com/512/1978/1978026.png'
+        args = f'{str(vchannel)[len(self.config._vchannel_prefix)-1:]} | 成為了回憶', 'https://cdn-icons-png.flaticon.com/512/1978/1978026.png'
 
         embed = self.gen_embed(
             args,
@@ -1143,7 +1134,7 @@ class Samegirl(commands.Bot):
         )
         await self.channel_send(
             embed,
-            type='embed', channel=self.get_channel(self.vchannel_status)
+            type='embed', channel=self.get_channel(int(self.config._vchannel_status))
         )
         await vchannel.delete()
 
@@ -1160,12 +1151,12 @@ class Samegirl(commands.Bot):
             except TypeError:
                 print("You need a rgb tuple for the embed color.")
         else:
-            r, g, b = self.embed_color
+            r, g, b = [int(i) for i in self.config._default_color]
         
         embed.color = self.colour.from_rgb(r, g, b)
 
         if imp:
-            embed.set_footer(text=f'LandedWriter ∙ TestBot {self.BOTVERSION}', icon_url='https://cdn.discordapp.com/attachments/771941194207985694/1005882566580113558/3980-blonde-neko-scared.png')
+            embed.set_footer(text=f'LandedWriter ∙ same-girl {self.BOTVERSION}', icon_url=self.user.avatar)
 
         if ava:
             embed.set_author(name="| サメガール", icon_url=self.user.avatar)
@@ -1186,13 +1177,15 @@ class Samegirl(commands.Bot):
             value = None
             
             try: args[5]
-            except: value = f'1. {args[4][0]}\n```{self.prefix}{args[4][1]}```'
+            except: value = f'1. {args[4][0]}\n```{self.config._command_prefix}{args[4][1]}```'
 
-            if not value: value = f'1. {args[4][0]}\n```{self.prefix}{args[4][1]}```\n2. {args[5][0]}\n```{self.prefix}{args[5][1]}```'
+            if not value: value = (
+                f'1. {args[4][0]}\n```{self.config._command_prefix}{args[4][1]}```\n2. {args[5][0]}\n```{self.config._command_prefix}{args[5][1]}```'
+                )
 
             embed.add_field(
                 name='Usage',
-                value=f'- <imp> - [n-imp] -\n```{args[3]}```',
+                value=f'- <required> - [optional] -\n```{args[3]}```',
                 inline=False
             )
             embed.add_field(
@@ -1216,10 +1209,10 @@ class Samegirl(commands.Bot):
         return embed
 
     async def n_translator(self, number, channel):
-        if not channel.id == self.nchannel:
+        if not channel.id == int(self.config._nchannel):
             return
 
-        if not self.is_int(number):
+        if not Tool.is_int(number):
             return
 
         if not len(number) == 6:
@@ -1239,22 +1232,6 @@ class Samegirl(commands.Bot):
             print(f'I\'m running at {c} times.')
             c += 1
             await asyncio.sleep(5)
-
-##############################################################
-
-    def is_int(self, object) -> bool:
-        try:
-            int(object)
-        except:
-            return False
-        return True
-
-    def is_exist(self, list: list, index: int) -> bool:
-        try:
-            list[index]
-        except:
-            return False
-        return True
 
     def get_bitrate(self, guild) -> int:
         tier = guild.premium_tier

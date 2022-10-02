@@ -4,12 +4,13 @@ from discord import SelectOption
 from discord.ext import commands
 from discord.ui import View, select
 
-class HelpMain(commands.Cog, View):
+class HelpPrimary(commands.Cog, View):
     def __init__(self, *items, timeout=180, bot, author, channel):
         self.bot = bot
         self.author = author
         self.channel = channel
         super().__init__(*items, timeout=timeout)
+        print(self.bot)
 
     @select(
         placeholder="help command",
@@ -32,4 +33,4 @@ class HelpMain(commands.Cog, View):
         await interaction.response.send_message(embed=embed)
 
 def setup(bot):
-    bot.add_cog(HelpMain(bot))
+    bot.add_cog(HelpPrimary(bot))

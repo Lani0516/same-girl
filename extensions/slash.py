@@ -9,7 +9,7 @@ class Slash(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @slash_command(description="get command docs")
+    @slash_command(description="Simple manual for using this bot")
     async def help(
         self, ctx,
         command: Option(str, "command", required=False)
@@ -17,15 +17,17 @@ class Slash(commands.Cog):
         handler = getattr(self.bot, 'cmd_help', None)
         handler_kwargs = {}
         handler_kwargs["author"] = ctx.author
+        handler_kwargs["channel"] = ctx.channel
         handler_kwargs["other"] = [command]
 
-        response = await handler(**handler_kwargs)
+        response = await handler(**handler_kwargs)     
 
+        if isinstance(response, tuple):
+            await ctx.send_response(embed=response[0], view=response[1])
+            return
         await ctx.send_response(embed=response)
-        # object = await ctx.send_response(embed=response, view=HelpView.Main())
-        # print(object)
 
-    @slash_command(description="get client latency")
+    @slash_command(description="Get client latency")
     async def ping(
         self, ctx, 
     ):
@@ -33,7 +35,7 @@ class Slash(commands.Cog):
         response = await handler()
         await ctx.send_response(embed=response)
 
-    @slash_command(description="get user id")
+    @slash_command(description="Get user id")
     async def id(
         self, ctx, 
         user: Option(discord.User, "User", required=False)

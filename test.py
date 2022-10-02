@@ -1,6 +1,8 @@
-a = []
+import configparser
 
-if a:
-    print('OK')
-else:
-    print('NO')
+config = configparser.ConfigParser()
+config.read("config/config.ini", encoding="utf-8")
+
+print(config.get("Voice", "Blacklist").split())
+print()
+print(type(config.get("Voice", "Blacklist").split()))
