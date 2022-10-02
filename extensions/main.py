@@ -815,18 +815,18 @@ class Samegirl(commands.Bot):
         if after.channel:
             join = True
 
+        if before.channel == after.channel:
+            return
+
         content = str()
         
         if join and not leave: # join only
             content, color = f'{member.display_name} | 加入 {str(after.channel)[len(self.config._vchannel_prefix)-1:]}', None
             
-        elif not join and leave: # change
+        elif not join and leave: # leave only
             content, color = f'{member.display_name} | 離開 {str(before.channel)[len(self.config._vchannel_prefix)-1:]}', (191, 120, 120)
         
-        elif join and leave:
-            return # other voice state update
-
-        else: # leave only
+        else: # change
             content, color = f'{member.display_name} | {str(before.channel)[len(self.config._vchannel_prefix)-1:]} 移到 {str(after.channel)[len(self.config._vchannel_prefix)-1:]}', (216, 176, 107)
 
         print(f'{member.guild} | {content}')
