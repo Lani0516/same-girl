@@ -38,7 +38,10 @@ class Samegirl(commands.Bot):
 
         super().__init__(intents=intents, command_prefix='~', debug_guilds=[1003922991769464922])
 
-        self.load_extensions("slash", "view")
+        self.load_extensions(
+            "extensions.slash",
+            "extensions.view"
+            )
         
     def cleanup(self):
         try:
@@ -73,7 +76,6 @@ class Samegirl(commands.Bot):
         return await super().close()
 
     async def on_ready(self):
-        # change the presence into .ini
         await self.change_presence(activity=discord.Game(self.config._activity))
 
         _clear = None
@@ -406,6 +408,34 @@ class Samegirl(commands.Bot):
         return embed
 
     """vchannel only"""
+    async def cmd_name(self, channel, other):
+        """
+        Usage:
+            {command_prefix}name <new_name>
+        Example:
+            Change vchannel name to Same | name Same
+        Change:
+            vchannel name
+        Description:
+            change vchannel name
+        Name:
+            name
+        Return:
+            None
+        """
+        if not other:
+            raise JustWrong("missing argument")
+      
+        name = f'{self.config._vchannel_prefix}{" ".join(other)}'
+        await channel.edit(name=name)
+
+        embed = self.gen_embed()
+        embed.title = "Name Changed !"
+        await self.channel_send(
+            embed,
+            channel=channel, type='embed'
+        )
+
     async def cmd_whitelist(self, guild, channel, user_mention, other):
         if not other:
             raise JustWrong("missing argument")
@@ -813,6 +843,8 @@ class Samegirl(commands.Bot):
     async def on_guild_channel_create(self, channel):
         if str(channel.type) != 'voice':
             return
+
+        self.gen_embed()
 
         guild_id = channel.guild.id
         channel_id = channel.id

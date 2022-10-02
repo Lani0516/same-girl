@@ -10,7 +10,6 @@ class HelpPrimary(commands.Cog, View):
         self.author = author
         self.channel = channel
         super().__init__(*items, timeout=timeout)
-        print(self.bot)
 
     @select(
         placeholder="help command",
