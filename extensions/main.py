@@ -40,7 +40,7 @@ class Samegirl(commands.Bot):
 
         self.load_extensions(
             "extensions.slash",
-            "extensions.view"
+            "extensions.view", store=True
             )
         
     def cleanup(self):
@@ -979,7 +979,7 @@ class Samegirl(commands.Bot):
                         master_signal = True
                 if master_signal:
                     break
-        
+                
             if not master_signal:
                 await self.channel_send(
                     "You are not one of the vchannel administrator.",
