@@ -19,9 +19,20 @@ class Config:
         self._admin_commands = config.get(
             "Commnad", "AdminCommand", fallback=ConfigDefaults.admin_commands
         )
+        if not isinstance(self._admin_commands, (list, tuple, set)):
+            try:
+                self._admin_commands.split()
+            except:
+                self._admin_commands = [self._admin_commands]
+
         self._vchannel_commands = config.get(
             "Command", "VoiceCommand", fallback=ConfigDefaults.vchannel_commands
-        ).split()
+        )
+        if not isinstance(self._vchannel_commands, (list, tuple, set)):
+            try:
+                self._vchannel_commands.split()
+            except:
+                self._vchannel_commands = [self._vchannel_commands]
 
         self._vcategory = config.get(
             "Voice", "Category", fallback=ConfigDefaults.vcategory
@@ -38,6 +49,11 @@ class Config:
         self._vchannel_blacklist = config.get(
             "Voice", "Blacklist", fallback=ConfigDefaults.vchannel_blacklist
         )
+        if not isinstance(self._vchannel_blacklist, (list, tuple, set)):
+            try:
+                self._vchannel_blacklist.split()
+            except:
+                self._vchannel_blacklist = [self._vchannel_blacklist]
 
         self._nchannel = config.get(
             "Constant", "Nhentai", fallback=ConfigDefaults.nchannel
@@ -54,7 +70,7 @@ class ConfigDefaults:
 
     command_prefix = '>>'
     admin_commands = [
-        'send', 'clear' 
+        'send', 'clear', 'server_state_setup'
     ]
     vchannel_commands = [
         'name', 'whitelist', 'blacklist', 'mute', 'unmute', 'deaf', 'undeaf', 'kick', 'coop'

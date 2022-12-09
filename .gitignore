@@ -5,5 +5,6 @@ screenshot/
 __pycache__/
 extensions/__pycache__/
 
-config/vchannel.json
 config/config.ini
+
+test/

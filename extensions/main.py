@@ -12,7 +12,7 @@ from discord.ext import commands
 
 from .tool import Tool
 from .json import Json
-from .view import HelpPrimary
+from .view import HelpPrimary, HelpAdmin
 from .config import Config, ConfigDefaults
 from .exception import JustWrong
 
@@ -109,6 +109,46 @@ class Samegirl(commands.Bot):
 
 ##############################################################
 
+    async def gen_admin_cmd_list(self, author):
+        if not author.guild_permissions.administrator:
+            embed = self.gen_embed(err=True)
+            embed.description = (
+                "> you are not admin!"
+            )
+            return
+
+        embed = self.gen_embed()
+        embed.title = (
+            "🏮 | Admin Commands"
+        )
+        embed.description = (
+            "Hey! If you can see this. That means you are one of\n"
+            "our administators. Go look what you need for. Cheers!"
+        )
+
+        view = HelpAdmin(
+            bot=self,
+            author=author
+        )
+
+        return embed, view
+
+    async def gen_general_cmd_list(self):
+        embed = self.gen_embed()
+        embed.title = (
+            "🎏 | General Commands"
+        )
+        embed.description = (
+            "What a pleasure meeting you :)\n"
+            "How may I serve you, sir ?"
+        )
+
+        view = HelpAdmin(bot=self)
+
+        return embed, view
+
+##############################################################
+
     """admin only"""
     async def cmd_send(self, channel, other):
         """
@@ -184,6 +224,8 @@ class Samegirl(commands.Bot):
 
         print("Unknown Type\n")
 
+    # async def cmd_server_state_setup(self, channel):
+
     """global"""
     async def cmd_help(self, author, channel, other):
         """
@@ -218,9 +260,6 @@ class Samegirl(commands.Bot):
             "\n"
             "Visit my personal website: [Lani Home](https://www.youtube.com/watch?v=dQw4w9WgXcQ) | Join my server: [SharkParty](https://discord.gg/yuwuy)"
         )
-
-        if author.guild_permissions.administrator:
-            pass
 
         view = HelpPrimary(
             bot=self,
