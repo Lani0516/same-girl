@@ -29,6 +29,7 @@ class Samegirl(commands.Bot):
         self.config = Config(config_file)
 
         # TODO: log it in .ini file
+        # quick reminder on m2 mba
         self.BOTVERSION = 'v0.3.0'
 
         self.colour = discord.Colour(value=000000)
