@@ -84,6 +84,6 @@ class ConfigDefaults:
 
     nchannel = None
     activity = "/help || 加入SharkParty"
-    default_color = (150, 194, 208)
+    default_color = "150 194 208"
 
     config_file = "config/config.ini"
