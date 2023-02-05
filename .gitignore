@@ -3,7 +3,7 @@
 .vscode/
 screenshot/
 __pycache__/
-extensions/__pycache__/
+ext/__pycache__/
 
 config/config.ini
 

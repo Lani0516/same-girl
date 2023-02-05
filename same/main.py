@@ -34,14 +34,14 @@ class Samegirl(commands.Bot):
 
         self.colour = discord.Colour(value=000000)
 
-        self.vchannel_details = Json("config/vchannel.json")
+        self.vchannel_details = Json("config/json/voice.json")
         self.vchannel_details.dump({})
 
         super().__init__(intents=intents, command_prefix='~', debug_guilds=[1003922991769464922])
 
         self.load_extensions(
-            "extensions.slash",
-            "extensions.view", store=True
+            "same.slash",
+            "same.view", store=True
             )
         
     def cleanup(self):
@@ -89,23 +89,26 @@ class Samegirl(commands.Bot):
         _clear()
 
         await self.wait_until_ready()
-        print("===========================================================",
-              "|      ___           ___           ___           ___      |",
-              "|     /\  \         /\  \         /\__\         /\  \     |",
-              "|    /::\  \       /::\  \       /::|  |       /::\  \    |",
-              "|   /:/\ \  \     /:/\:\  \     /:|:|  |      /:/\:\  \   |",
-              "|  _\:\~\ \  \   /::\~\:\  \   /:/|:|__|__   /::\~\:\  \  |",
-              "| /\ \:\ \ \__\ /:/\:\ \:\__\ /:/ |::::\__\ /:/\:\ \:\__\\ |",
-              "| \:\ \:\ \/__/ \/__\:\/:/  / \/__/~~/:/  / \:\~\:\ \/__/ |",
-              "|  \:\ \:\__\        \::/  /        /:/  /   \:\ \:\__\   |",
-              "|   \:\/:/  /        /:/  /        /:/  /     \:\ \/__/   |",
-              "|    \::/  /        /:/  /        /:/  /       \:\__\     |",
-              "|     \/__/         \/__/         \/__/         \/__/     |",
-              "|                                                         |",
-              "===========================================================", sep='\n', end='\n')
-        start_up = f'>>> Your Bot {str(self.user)[:-5]} is now Online' 
-        print(start_up)
-        print('-' * (len(start_up)+1))
+        print("________________________________________________________",
+              "      ___           ___           ___           ___      ",
+              "     /\  \         /\  \         /\__\         /\  \     ",
+              "    /::\  \       /::\  \       /::|  |       /::\  \    ",
+              "   /:/\ \  \     /:/\:\  \     /:|:|  |      /:/\:\  \   ",
+              "  _\:\~\ \  \   /::\~\:\  \   /:/|:|__|__   /::\~\:\  \  ",
+              " /\ \:\ \ \__\ /:/\:\ \:\__\ /:/ |::::\__\ /:/\:\ \:\__\\ ",
+              " \:\ \:\ \/__/ \/__\:\/:/  / \/__/~~/:/  / \:\~\:\ \/__/ ",
+              "  \:\ \:\__\        \::/  /        /:/  /   \:\ \:\__\   ",
+              "   \:\/:/  /        /:/  /        /:/  /     \:\ \/__/   ",
+              "    \::/  /        /:/  /        /:/  /       \:\__\     ",
+              "     \/__/         \/__/         \/__/         \/__/     ",
+              "________________________________________________________", sep='\n', end='\n')        
+
+        greetins = f'>>> Your Bot {str(self.user)[:-5]} is now Online'
+        
+        print('-' * (len(greetins)+1))
+        print(greetins)
+        print('-' * (len(greetins)+1))
+        
         await self.bg_task()
 
 ##############################################################
@@ -1280,18 +1283,18 @@ class Samegirl(commands.Bot):
 
         return embed
 
-    async def n_translator(self, number, channel):
+    async def n_translator(self, num, channel):
         if not channel.id == int(self.config._nchannel):
             return
 
-        if not Tool.is_int(number):
+        if not Tool.is_int(num):
             return
 
-        if not len(number) == 6:
+        if not len(num) == 6:
             return
 
         await self.channel_send(
-            response=f'https://nhentai.net/g/{int(number)}',
+            response=f'https://nhentai.net/g/{int(num)}',
             type='text',
             channel=channel
             )
@@ -1299,9 +1302,8 @@ class Samegirl(commands.Bot):
 
     async def bg_task(self):
         c = 1
-        while False:
-        # while not self.is_closed():
-            print(f'I\'m running at {c} times.')
+        while not self.is_closed():
+            print(f'[ bg_task ] {c} times running')
             c += 1
             await asyncio.sleep(5)
 
