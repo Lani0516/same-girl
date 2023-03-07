@@ -8,3 +8,5 @@ ext/__pycache__/
 config/config.ini
 
 test/
+
+.DS_Store
